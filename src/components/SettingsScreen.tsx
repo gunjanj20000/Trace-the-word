@@ -743,18 +743,19 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
                         pitch: settings.voicePitch,
                         rate: settings.voiceRate,
                         voiceURI: settings.selectedVoiceURI,
+                        speakAsLetterForWord: true,
                       })
                     }
                     className="px-4 py-2 rounded-xl bg-amber-50 text-amber-800 font-bold text-sm border border-amber-200 hover:bg-amber-100 flex items-center gap-1.5 active:scale-95 transition"
                   >
                     <Volume2 className="w-4 h-4 text-amber-600" />
-                    <span>Word: "BALL!"</span>
+                    <span>Word: "B for Ball!"</span>
                   </button>
 
                   <button
                     type="button"
                     onClick={() =>
-                      speakLetter('B', true, settings.soundVolume, {
+                      speakLetter('B', false, settings.soundVolume, {
                         pitch: settings.voicePitch,
                         rate: settings.voiceRate,
                         voiceURI: settings.selectedVoiceURI,
@@ -763,7 +764,7 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
                     className="px-4 py-2 rounded-xl bg-sky-50 text-sky-800 font-bold text-sm border border-sky-200 hover:bg-sky-100 flex items-center gap-1.5 active:scale-95 transition"
                   >
                     <Volume2 className="w-4 h-4 text-sky-600" />
-                    <span>Phonics: "buh!"</span>
+                    <span>Letter Name: "B!"</span>
                   </button>
 
                   <button
@@ -778,7 +779,7 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
                     className="px-4 py-2 rounded-xl bg-emerald-50 text-emerald-800 font-bold text-sm border border-emerald-200 hover:bg-emerald-100 flex items-center gap-1.5 active:scale-95 transition"
                   >
                     <Volume2 className="w-4 h-4 text-emerald-600" />
-                    <span>Praise: "Super! BALL!"</span>
+                    <span>Praise: "Super! B for Ball!"</span>
                   </button>
 
                   <button
@@ -793,23 +794,23 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
               </div>
             </div>
 
-            {/* Standard Sound & Phonics Toggles */}
+            {/* Standard Sound & Pronunciation Options */}
             <div className="bg-white rounded-3xl p-6 shadow-soft border border-slate-200 space-y-5">
-              <h3 className="text-xl font-black text-slate-800 mb-2">Sound Options</h3>
+              <h3 className="text-xl font-black text-slate-800 mb-2">Pronunciation & Audio Settings</h3>
 
-              {/* Phonics Sound */}
+              {/* Letter Pronunciation Mode Toggle */}
               <div className="flex items-center justify-between">
                 <div>
-                  <span className="font-bold text-slate-800 block text-lg">Say Letter Phonics Sounds</span>
+                  <span className="font-bold text-slate-800 block text-lg">Speak Letter Names (A, B, C...)</span>
                   <span className="text-sm text-slate-500">
-                    Speaks phonetic sound (B → "buh!", A → "ah!") when completing a letter
+                    Speaks clear alphabet letter names when tracing (turn off for phonetic sounds e.g. "buh")
                   </span>
                 </div>
                 <input
                   type="checkbox"
-                  checked={settings.phonicsEnabled}
-                  onChange={(e) => updateSetting('phonicsEnabled', e.target.checked)}
-                  className="w-7 h-7 accent-sky-600 rounded cursor-pointer"
+                  checked={!settings.phonicsEnabled}
+                  onChange={(e) => updateSetting('phonicsEnabled', !e.target.checked)}
+                  className="w-7 h-7 accent-amber-600 rounded cursor-pointer"
                 />
               </div>
 
@@ -818,14 +819,16 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
               {/* Word Sound */}
               <div className="flex items-center justify-between">
                 <div>
-                  <span className="font-bold text-slate-800 block text-lg">Speak Whole Word on Completion</span>
-                  <span className="text-sm text-slate-500">Pronounces whole word with expressive joy (e.g. "BALL!")</span>
+                  <span className="font-bold text-slate-800 block text-lg">Speak "A for Apple" on Word Complete</span>
+                  <span className="text-sm text-slate-500">
+                    Celebrates completed words with full mnemonic phrase (e.g. "B for Ball!", "A for Apple!")
+                  </span>
                 </div>
                 <input
                   type="checkbox"
                   checked={settings.wordAudioEnabled}
                   onChange={(e) => updateSetting('wordAudioEnabled', e.target.checked)}
-                  className="w-7 h-7 accent-sky-600 rounded cursor-pointer"
+                  className="w-7 h-7 accent-amber-600 rounded cursor-pointer"
                 />
               </div>
 

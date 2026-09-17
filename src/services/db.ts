@@ -108,9 +108,20 @@ export async function initStorage(): Promise<{
   if (!settingsObj) {
     settingsObj = { id: 'app-settings', ...DEFAULT_SETTINGS };
     await db.put('settings', settingsObj);
-  } else if (!settingsObj.theme) {
-    settingsObj = { ...settingsObj, theme: 'forest' };
-    await db.put('settings', settingsObj);
+  } else {
+    let needsUpdate = false;
+    if (!settingsObj.theme) {
+      settingsObj.theme = 'forest';
+      needsUpdate = true;
+    }
+    // Update default to letter names (phonicsEnabled = false)
+    if (settingsObj.phonicsEnabled === true) {
+      settingsObj.phonicsEnabled = false;
+      needsUpdate = true;
+    }
+    if (needsUpdate) {
+      await db.put('settings', settingsObj);
+    }
   }
 
   const [words, categories] = await Promise.all([

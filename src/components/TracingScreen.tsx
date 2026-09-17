@@ -3,7 +3,7 @@ import { Word, Settings } from '../types';
 import { LetterTracer } from './LetterTracer';
 import { WordImage } from './WordImage';
 import { Celebration } from './Celebration';
-import { speakWord, playCelebrationMelody, speakLetter } from '../services/audio';
+import { speakWord, playCelebrationMelody, speakLetter, getLetterForWordPhrase } from '../services/audio';
 import { recordWordCompletion, recordLetterTraced, toggleWordFavorite } from '../services/db';
 import { getThemeConfig } from '../theme/themeConfig';
 import { Home, ArrowRight, RotateCcw, Volume2, Star, Sparkles } from 'lucide-react';
@@ -273,7 +273,7 @@ export const TracingScreen: React.FC<TracingScreenProps> = ({
               className={`mt-2 mb-4 px-6 py-3 rounded-full ${themeConfig.btnMyWords} font-bold text-lg flex items-center gap-2 transition active:scale-95`}
             >
               <Volume2 className="w-6 h-6" />
-              <span>Hear "{wordText}"</span>
+              <span>Hear "{getLetterForWordPhrase(wordText)}"</span>
             </button>
           </div>
         ) : (

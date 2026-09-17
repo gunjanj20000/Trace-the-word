@@ -80,7 +80,7 @@ export const DEFAULT_SETTINGS: Settings = {
   tracingDifficulty: 'easy',
   showArrows: true,
   showStartPoint: true,
-  phonicsEnabled: true,
+  phonicsEnabled: false, // Letter names ("A", "B", "C") by default, not phonetics
   wordAudioEnabled: true,
   celebrationEnabled: true,
   celebrationStyle: 'stars',

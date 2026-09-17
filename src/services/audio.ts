@@ -387,17 +387,39 @@ export async function speakText(
 }
 
 /**
- * Pronounces a letter expressively (either phonics sound e.g. "buh!" or letter name e.g. "B!")
+ * Generates the educational mnemonic phrase e.g. "A for Apple", "B for Ball"
+ */
+export function getLetterForWordPhrase(wordText: string): string {
+  const clean = wordText.trim();
+  if (!clean) return '';
+  const firstLetter = clean.charAt(0).toUpperCase();
+  const rest = clean.slice(1).toLowerCase();
+  const formattedWord = `${firstLetter}${rest}`;
+  return `${firstLetter} for ${formattedWord}`;
+}
+
+/**
+ * Returns the exact speech text for a letter name
+ */
+export function getLetterNameText(letter: string): string {
+  const upper = letter.toUpperCase().trim();
+  // Ensure 'A' is articulated as the letter name /eɪ/ ("Ay"), never the unstressed article /ə/
+  if (upper === 'A') return 'Ay!';
+  return `${upper}!`;
+}
+
+/**
+ * Pronounces a letter name with cheerful expressive tone (e.g. "A!", "B!", "C!")
  */
 export async function speakLetter(
   letter: string,
-  phonicsEnabled: boolean,
+  phonicsEnabled: boolean = false,
   volume: number = 1.0,
   options: { pitch?: number; rate?: number; voiceURI?: string } = {}
 ): Promise<void> {
-  const upper = letter.toUpperCase();
+  const upper = letter.toUpperCase().trim();
   if (phonicsEnabled && LETTER_PHONICS[upper]) {
-    // Speak phonetic sound expressively e.g. "buh!"
+    // Speak phonetic sound e.g. "buh!"
     const sound = LETTER_PHONICS[upper].sound;
     await speakText(`${sound}!`, {
       rate: options.rate ?? 0.84,
@@ -407,8 +429,9 @@ export async function speakLetter(
       expressive: true,
     });
   } else {
-    // Speak letter name with bright cheerful inflection e.g. "B!"
-    await speakText(`${upper}!`, {
+    // Speak letter name with bright cheerful inflection e.g. "B!", "A!" (Ay!)
+    const letterName = getLetterNameText(upper);
+    await speakText(letterName, {
       rate: options.rate ?? 0.88,
       pitch: options.pitch ?? 1.18,
       volume,
@@ -419,7 +442,7 @@ export async function speakLetter(
 }
 
 /**
- * Pronounces the whole word expressively, checking first for custom recorded/uploaded audio in IDB
+ * Pronounces the word on completion as e.g. "A for Apple!", "B for Ball!"
  */
 export async function speakWord(
   wordText: string,
@@ -430,6 +453,7 @@ export async function speakWord(
     pitch?: number;
     rate?: number;
     voiceURI?: string;
+    speakAsLetterForWord?: boolean;
   } = {}
 ): Promise<void> {
   if (audioId) {
@@ -446,10 +470,14 @@ export async function speakWord(
     }
   }
 
-  // Expressive text with exclamation mark for joyful terminal pitch contour
-  const formattedText = `${wordText.trim()}!`;
+  // Speak as "A for Apple!", "B for Ball!" by default on completion
+  const shouldSpeakMnemonic = options.speakAsLetterForWord ?? true;
+  const formattedText = shouldSpeakMnemonic
+    ? `${getLetterForWordPhrase(wordText)}!`
+    : `${wordText.trim()}!`;
+
   const pitch = options.isCelebration
-    ? (options.pitch ? options.pitch * 1.05 : 1.24) // Extra joyful on celebration
+    ? (options.pitch ? options.pitch * 1.05 : 1.22) // Joyful celebration inflection
     : (options.pitch ?? 1.18);
 
   const rate = options.rate ?? 0.88;
@@ -482,7 +510,8 @@ export async function speakPraise(
   options: { pitch?: number; rate?: number; voiceURI?: string } = {}
 ): Promise<void> {
   const praise = INDIAN_ENGLISH_PRAISES[Math.floor(Math.random() * INDIAN_ENGLISH_PRAISES.length)];
-  const fullText = `${praise} ${wordText.trim()}!`;
+  const phrase = getLetterForWordPhrase(wordText);
+  const fullText = `${praise} ${phrase}!`;
 
   await speakText(fullText, {
     rate: options.rate ?? 0.88,
