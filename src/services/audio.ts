@@ -21,6 +21,218 @@ function getAudioContext(): AudioContext | null {
 // Keep active utterance referenced to prevent garbage collection bugs in Safari/Chrome
 let currentUtterance: SpeechSynthesisUtterance | null = null;
 
+// Cached voices array and listener initialization
+let cachedVoices: SpeechSynthesisVoice[] = [];
+let voiceLoadingPromise: Promise<SpeechSynthesisVoice[]> | null = null;
+
+/**
+ * Retrieves all installed speech synthesis voices, handling async voice initialization
+ */
+export function getAvailableVoices(): Promise<SpeechSynthesisVoice[]> {
+  if (typeof window === 'undefined' || !('speechSynthesis' in window)) {
+    return Promise.resolve([]);
+  }
+
+  const existing = window.speechSynthesis.getVoices();
+  if (existing.length > 0) {
+    cachedVoices = existing;
+    return Promise.resolve(existing);
+  }
+
+  if (voiceLoadingPromise) {
+    return voiceLoadingPromise;
+  }
+
+  voiceLoadingPromise = new Promise((resolve) => {
+    const handleVoicesChanged = () => {
+      const v = window.speechSynthesis.getVoices();
+      if (v.length > 0) {
+        cachedVoices = v;
+        window.speechSynthesis.removeEventListener('voiceschanged', handleVoicesChanged);
+        resolve(v);
+      }
+    };
+
+    window.speechSynthesis.addEventListener('voiceschanged', handleVoicesChanged);
+
+    // Fallback timer in case voiceschanged does not fire
+    setTimeout(() => {
+      cachedVoices = window.speechSynthesis.getVoices();
+      resolve(cachedVoices);
+    }, 1000);
+  });
+
+  return voiceLoadingPromise;
+}
+
+/**
+ * Checks if a voice is an Indian English or Indian voice
+ */
+export function isIndianVoice(v: SpeechSynthesisVoice): boolean {
+  const lang = (v.lang || '').toLowerCase().replace('_', '-');
+  const name = (v.name || '').toLowerCase();
+  return (
+    lang === 'en-in' ||
+    lang.startsWith('en-in-') ||
+    lang === 'hi-in' ||
+    lang.startsWith('hi-') ||
+    name.includes('india') ||
+    name.includes('neerja') ||
+    name.includes('heera') ||
+    name.includes('isha') ||
+    name.includes('sangeeta') ||
+    name.includes('veena') ||
+    name.includes('kajal') ||
+    name.includes('swara') ||
+    name.includes('lekha')
+  );
+}
+
+/**
+ * Checks if a voice is female
+ */
+export function isFemaleVoice(v: SpeechSynthesisVoice): boolean {
+  const name = (v.name || '').toLowerCase();
+  const femaleKeywords = [
+    'female', 'woman', 'girl',
+    'neerja', 'heera', 'isha', 'sangeeta', 'veena', 'kajal',
+    'swara', 'ananya', 'sunita', 'aditi', 'pooja', 'lekha', 'kalpana',
+    'samantha', 'victoria', 'karen', 'zira', 'jenny', 'siri'
+  ];
+  const maleKeywords = ['male', 'guy', 'david', 'prabhat', 'george', 'ravi', 'mark', 'richard'];
+
+  if (maleKeywords.some(mk => name.includes(mk))) return false;
+  return femaleKeywords.some(fk => name.includes(fk));
+}
+
+/**
+ * Retrieves all installed Indian voices
+ */
+export async function getAvailableIndianVoices(): Promise<SpeechSynthesisVoice[]> {
+  const voices = await getAvailableVoices();
+  return voices.filter(isIndianVoice);
+}
+
+/**
+ * Selects the optimal Indian English female voice from available system voices
+ */
+export function selectBestIndianFemaleVoice(
+  voices: SpeechSynthesisVoice[],
+  selectedURI?: string
+): SpeechSynthesisVoice | null {
+  if (!voices || voices.length === 0) return null;
+
+  // If parent explicitly selected a voice URI, find it first
+  if (selectedURI) {
+    const matched = voices.find(v => v.voiceURI === selectedURI || v.name === selectedURI);
+    if (matched) return matched;
+  }
+
+  const scoreVoice = (v: SpeechSynthesisVoice): number => {
+    const name = v.name.toLowerCase();
+    const lang = (v.lang || '').toLowerCase().replace('_', '-');
+    let score = 0;
+
+    // 1. Language matching
+    if (lang === 'en-in' || lang.startsWith('en-in-')) {
+      score += 100;
+    } else if (name.includes('india') || name.includes('indian')) {
+      score += 85;
+    } else if (lang === 'hi-in' || lang.startsWith('hi-')) {
+      score += 65; // Hindi bilingual voices synthesize Indian English words with authentic accent
+    } else if (lang.startsWith('en')) {
+      score += 15;
+    } else {
+      return -100;
+    }
+
+    // 2. Gender matching (female priority)
+    const femaleNames = [
+      'neerja', 'heera', 'isha', 'sangeeta', 'veena', 'kajal',
+      'swara', 'ananya', 'sunita', 'aditi', 'pooja', 'lekha', 'kalpana'
+    ];
+    const isNamedFemale = femaleNames.some(fn => name.includes(fn));
+    const hasFemaleWord = name.includes('female') || name.includes('woman') || name.includes('girl');
+    const hasMaleWord = name.includes('male') || name.includes('david') || name.includes('prabhat') || name.includes('george') || name.includes('ravi');
+
+    if (isNamedFemale) {
+      score += 60;
+    } else if (hasFemaleWord) {
+      score += 50;
+    } else if (hasMaleWord) {
+      score -= 50;
+    } else {
+      score += 20;
+    }
+
+    // 3. Audio quality indicators (natural/neural engines)
+    if (name.includes('natural') || name.includes('neural')) {
+      score += 30; // e.g. Microsoft Neerja Online (Natural)
+    } else if (name.includes('online')) {
+      score += 20;
+    } else if (name.includes('google')) {
+      score += 15; // Google Indian English
+    } else if (name.includes('enhanced')) {
+      score += 15; // Apple Enhanced
+    }
+
+    return score;
+  };
+
+  const ranked = [...voices]
+    .map(v => ({ voice: v, score: scoreVoice(v) }))
+    .filter(item => item.score > 0)
+    .sort((a, b) => b.score - a.score);
+
+  if (ranked.length > 0) {
+    return ranked[0].voice;
+  }
+
+  // Fallback to any English female voice or first English voice
+  const fallback = voices.find(
+    v => (v.lang || '').startsWith('en') && isFemaleVoice(v)
+  ) || voices.find(v => (v.lang || '').startsWith('en'));
+
+  return fallback || null;
+}
+
+export interface ActiveVoiceInfo {
+  name: string;
+  lang: string;
+  isIndian: boolean;
+  isFemale: boolean;
+  displayName: string;
+}
+
+export function getVoiceDisplayInfo(voice: SpeechSynthesisVoice | null): ActiveVoiceInfo {
+  if (!voice) {
+    return {
+      name: 'Indian English (System Default)',
+      lang: 'en-IN',
+      isIndian: true,
+      isFemale: true,
+      displayName: 'Indian English Female (Default) 🇮🇳',
+    };
+  }
+
+  const isInd = isIndianVoice(voice);
+  const isFem = isFemaleVoice(voice);
+
+  const cleanName = voice.name
+    .replace(/\s*\(Natural\)\s*/i, ' (Natural)')
+    .replace(/Microsoft\s+/i, '')
+    .replace(/Google\s+/i, 'Google ')
+    .trim();
+
+  return {
+    name: voice.name,
+    lang: voice.lang,
+    isIndian: isInd,
+    isFemale: isFem,
+    displayName: `${cleanName}${isInd ? ' 🇮🇳' : ''}`,
+  };
+}
+
 /**
  * Play a gentle synth tone with exponential decay for sensory calmness
  */
@@ -99,19 +311,24 @@ export function playCelebrationMelody(volume: number = 0.8) {
   });
 }
 
+export interface SpeakOptions {
+  rate?: number;
+  pitch?: number;
+  volume?: number;
+  lang?: string;
+  voiceURI?: string;
+  expressive?: boolean;
+  onEnd?: () => void;
+}
+
 /**
- * Speak text using Web SpeechSynthesis TTS with friendly child-level tone
+ * Speak text using Web SpeechSynthesis TTS with warm, expressive Indian English female tone
  */
-export function speakText(
+export async function speakText(
   text: string,
-  options: {
-    rate?: number;
-    pitch?: number;
-    volume?: number;
-    onEnd?: () => void;
-  } = {}
+  options: SpeakOptions = {}
 ): Promise<void> {
-  return new Promise((resolve) => {
+  return new Promise(async (resolve) => {
     if (typeof window === 'undefined' || !('speechSynthesis' in window)) {
       if (options.onEnd) options.onEnd();
       resolve();
@@ -121,29 +338,30 @@ export function speakText(
     try {
       window.speechSynthesis.cancel();
 
+      // Expressive Indian English female voice tuning:
+      // - pitch: 1.18 provides a cheerful, warm, engaging melodious tone
+      // - rate: 0.90 provides clear, unhurried articulation ideal for children
+      // - lang: 'en-IN' instructs system synthesizers to apply Indian English phonology
+      const isExpressive = options.expressive !== false;
+      const rate = options.rate ?? (isExpressive ? 0.90 : 0.85);
+      const pitch = options.pitch ?? (isExpressive ? 1.18 : 1.05);
+      const volume = Math.max(0, Math.min(1, options.volume ?? 1.0));
+
       const utterance = new SpeechSynthesisUtterance(text);
       currentUtterance = utterance;
 
-      utterance.rate = options.rate ?? 0.85; // Slightly slower, calm cadence
-      utterance.pitch = options.pitch ?? 1.1; // Gentle, warmer pitch
-      utterance.volume = options.volume ?? 1.0;
+      utterance.rate = rate;
+      utterance.pitch = pitch;
+      utterance.volume = volume;
+      utterance.lang = options.lang ?? 'en-IN';
 
-      // Select warm English voice if available
-      const voices = window.speechSynthesis.getVoices();
-      if (voices.length > 0) {
-        const preferredVoice = voices.find(
-          (v) =>
-            v.lang.startsWith('en') &&
-            (v.name.includes('Natural') ||
-              v.name.includes('Samantha') ||
-              v.name.includes('Karen') ||
-              v.name.includes('Google') ||
-              v.name.includes('Siri'))
-        ) || voices.find((v) => v.lang.startsWith('en'));
+      // Find best Indian female voice
+      const voices = await getAvailableVoices();
+      const bestVoice = selectBestIndianFemaleVoice(voices, options.voiceURI);
 
-        if (preferredVoice) {
-          utterance.voice = preferredVoice;
-        }
+      if (bestVoice) {
+        utterance.voice = bestVoice;
+        utterance.lang = bestVoice.lang || 'en-IN';
       }
 
       utterance.onend = () => {
@@ -169,30 +387,50 @@ export function speakText(
 }
 
 /**
- * Pronounces a letter (either phonics sound e.g. "buh" or letter name e.g. "B")
+ * Pronounces a letter expressively (either phonics sound e.g. "buh!" or letter name e.g. "B!")
  */
 export async function speakLetter(
   letter: string,
   phonicsEnabled: boolean,
-  volume: number = 1.0
+  volume: number = 1.0,
+  options: { pitch?: number; rate?: number; voiceURI?: string } = {}
 ): Promise<void> {
   const upper = letter.toUpperCase();
   if (phonicsEnabled && LETTER_PHONICS[upper]) {
-    // Speak phonetic sound e.g. "buh"
-    await speakText(LETTER_PHONICS[upper].sound, { rate: 0.8, pitch: 1.15, volume });
+    // Speak phonetic sound expressively e.g. "buh!"
+    const sound = LETTER_PHONICS[upper].sound;
+    await speakText(`${sound}!`, {
+      rate: options.rate ?? 0.84,
+      pitch: options.pitch ?? 1.16,
+      volume,
+      voiceURI: options.voiceURI,
+      expressive: true,
+    });
   } else {
-    // Speak letter name e.g. "B"
-    await speakText(upper, { rate: 0.85, pitch: 1.1, volume });
+    // Speak letter name with bright cheerful inflection e.g. "B!"
+    await speakText(`${upper}!`, {
+      rate: options.rate ?? 0.88,
+      pitch: options.pitch ?? 1.18,
+      volume,
+      voiceURI: options.voiceURI,
+      expressive: true,
+    });
   }
 }
 
 /**
- * Pronounces the whole word, checking first for custom recorded/uploaded audio in IDB
+ * Pronounces the whole word expressively, checking first for custom recorded/uploaded audio in IDB
  */
 export async function speakWord(
   wordText: string,
   audioId?: string,
-  volume: number = 1.0
+  volume: number = 1.0,
+  options: {
+    isCelebration?: boolean;
+    pitch?: number;
+    rate?: number;
+    voiceURI?: string;
+  } = {}
 ): Promise<void> {
   if (audioId) {
     try {
@@ -208,6 +446,49 @@ export async function speakWord(
     }
   }
 
-  // Fallback to TTS
-  await speakText(wordText, { rate: 0.82, pitch: 1.05, volume });
+  // Expressive text with exclamation mark for joyful terminal pitch contour
+  const formattedText = `${wordText.trim()}!`;
+  const pitch = options.isCelebration
+    ? (options.pitch ? options.pitch * 1.05 : 1.24) // Extra joyful on celebration
+    : (options.pitch ?? 1.18);
+
+  const rate = options.rate ?? 0.88;
+
+  await speakText(formattedText, {
+    rate,
+    pitch,
+    volume,
+    voiceURI: options.voiceURI,
+    expressive: true,
+  });
+}
+
+/**
+ * Expressive Indian English encouraging praise
+ */
+const INDIAN_ENGLISH_PRAISES = [
+  'Super!',
+  'Very good!',
+  'Brilliant!',
+  'Wonderful!',
+  'Great job!',
+  'Well done!',
+  'Star work!',
+];
+
+export async function speakPraise(
+  wordText: string,
+  volume: number = 1.0,
+  options: { pitch?: number; rate?: number; voiceURI?: string } = {}
+): Promise<void> {
+  const praise = INDIAN_ENGLISH_PRAISES[Math.floor(Math.random() * INDIAN_ENGLISH_PRAISES.length)];
+  const fullText = `${praise} ${wordText.trim()}!`;
+
+  await speakText(fullText, {
+    rate: options.rate ?? 0.88,
+    pitch: options.pitch ? options.pitch * 1.05 : 1.22,
+    volume,
+    voiceURI: options.voiceURI,
+    expressive: true,
+  });
 }

@@ -13,6 +13,9 @@ interface LetterTracerProps {
   showStartPoint?: boolean;
   soundVolume?: number;
   phonicsEnabled?: boolean;
+  voicePitch?: number;
+  voiceRate?: number;
+  voiceURI?: string;
   onComplete: () => void;
   onStrokeComplete?: (strokeIndex: number, totalStrokes: number) => void;
   className?: string;
@@ -27,6 +30,9 @@ export const LetterTracer: React.FC<LetterTracerProps> = ({
   showStartPoint = true,
   soundVolume = 0.8,
   phonicsEnabled = true,
+  voicePitch,
+  voiceRate,
+  voiceURI,
   onComplete,
   onStrokeComplete,
   className = '',
@@ -213,8 +219,12 @@ export const LetterTracer: React.FC<LetterTracerProps> = ({
       setIsLetterSuccess(true);
       playLetterCompleteSound(soundVolume);
 
-      // Speak phonics or letter sound
-      speakLetter(letter, phonicsEnabled, soundVolume);
+      // Speak phonics or letter sound with expressive Indian voice
+      speakLetter(letter, phonicsEnabled, soundVolume, {
+        pitch: voicePitch,
+        rate: voiceRate,
+        voiceURI,
+      });
 
       setTimeout(() => {
         onComplete();

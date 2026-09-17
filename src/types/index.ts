@@ -44,6 +44,13 @@ export interface Settings {
   parentGateType: ParentGateType;
   soundVolume: number; // 0.0 to 1.0
   selectedCategory: string; // 'all' or category ID
+
+  // Voice & TTS Settings (Expressive Indian English Female Voice)
+  voiceAccent?: 'en-IN' | 'auto';
+  voicePitch?: number; // 0.8 to 1.5, default 1.18 (warm cheerful tone)
+  voiceRate?: number; // 0.6 to 1.2, default 0.90 (clear sensory pace)
+  voiceExpressiveness?: 'expressive' | 'calm';
+  selectedVoiceURI?: string;
 }
 
 export interface WordProgress {

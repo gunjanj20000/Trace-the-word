@@ -14,7 +14,17 @@ import {
   resetAllData,
   getDB,
 } from '../services/db';
-import { speakWord, playCelebrationMelody } from '../services/audio';
+import {
+  speakWord,
+  speakLetter,
+  speakPraise,
+  playCelebrationMelody,
+  getAvailableVoices,
+  selectBestIndianFemaleVoice,
+  getVoiceDisplayInfo,
+  isIndianVoice,
+  ActiveVoiceInfo,
+} from '../services/audio';
 import {
   ArrowLeft,
   Settings as SettingsIcon,
@@ -86,6 +96,18 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
     window.addEventListener('pwa-installable', handleInstallable);
     return () => window.removeEventListener('pwa-installable', handleInstallable);
   }, []);
+
+  // Audio & Indian Voice state
+  const [voices, setVoices] = useState<SpeechSynthesisVoice[]>([]);
+  const [activeVoiceInfo, setActiveVoiceInfo] = useState<ActiveVoiceInfo | null>(null);
+
+  useEffect(() => {
+    getAvailableVoices().then((loaded) => {
+      setVoices(loaded);
+      const best = selectBestIndianFemaleVoice(loaded, settings.selectedVoiceURI);
+      setActiveVoiceInfo(getVoiceDisplayInfo(best));
+    });
+  }, [settings.selectedVoiceURI]);
 
   const handleInstallApp = async () => {
     const promptEvent = (window as any).deferredPwaPrompt;
@@ -544,15 +566,243 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
         {/* 3. AUDIO TAB */}
         {activeTab === 'audio' && (
           <div className="space-y-6">
+            {/* Expressive Indian English Female Voice Card */}
             <div className="bg-white rounded-3xl p-6 shadow-soft border border-slate-200 space-y-5">
-              <h3 className="text-xl font-black text-slate-800 mb-2">Voice & Pronunciation</h3>
+              <div className="flex items-center justify-between">
+                <div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-2xl">🇮🇳</span>
+                    <h3 className="text-xl font-black text-slate-800">Indian English Female Voice</h3>
+                    <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-amber-100 text-amber-900 border border-amber-300">
+                      Expressive TTS
+                    </span>
+                  </div>
+                  <p className="text-sm text-slate-500 mt-1">
+                    Warm, cheerful, melodic pronunciation with authentic Indian English accent tailored for children.
+                  </p>
+                </div>
+              </div>
+
+              {/* Active Voice Detection & Selection */}
+              <div className="bg-gradient-to-r from-orange-50/70 via-amber-50/50 to-emerald-50/70 rounded-2xl p-4 border border-amber-200/80">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                  <div>
+                    <span className="text-xs font-bold uppercase tracking-wider text-slate-500 block">
+                      Active Voice Engine
+                    </span>
+                    <span className="font-extrabold text-slate-900 text-base flex items-center gap-2">
+                      <span>{activeVoiceInfo?.displayName || 'Indian English Female (Default) 🇮🇳'}</span>
+                    </span>
+                    <span className="text-xs text-slate-500 block mt-0.5">
+                      {activeVoiceInfo?.isIndian
+                        ? 'Authentic Indian English voice synthesizer active'
+                        : 'Synthesizer configured for Indian English (en-IN)'}
+                    </span>
+                  </div>
+
+                  {/* Voice Selector Dropdown if voices are detected */}
+                  {voices.length > 0 && (
+                    <div className="flex-none sm:max-w-xs">
+                      <select
+                        value={settings.selectedVoiceURI || ''}
+                        onChange={(e) => updateSetting('selectedVoiceURI', e.target.value)}
+                        className="w-full bg-white border border-slate-300 rounded-xl px-3 py-2 text-sm font-semibold text-slate-800 shadow-sm focus:outline-none focus:ring-2 focus:ring-amber-400"
+                      >
+                        <option value="">Auto-Select Best Indian Female Voice 🇮🇳</option>
+                        {voices
+                          .filter(isIndianVoice)
+                          .map((v) => (
+                            <option key={v.voiceURI || v.name} value={v.voiceURI || v.name}>
+                              {v.name} (en-IN) 🇮🇳
+                            </option>
+                          ))}
+                        <optgroup label="Other Installed Voices">
+                          {voices
+                            .filter((v) => !isIndianVoice(v) && (v.lang || '').startsWith('en'))
+                            .map((v) => (
+                              <option key={v.voiceURI || v.name} value={v.voiceURI || v.name}>
+                                {v.name} ({v.lang})
+                              </option>
+                            ))}
+                        </optgroup>
+                      </select>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Expressiveness Mode Selector */}
+              <div>
+                <span className="font-bold text-slate-800 text-base block mb-1.5">
+                  Voice Expression & Delivery
+                </span>
+                <span className="text-xs text-slate-500 block mb-3">
+                  Tuned specifically for encouraging early speech and sensory-friendly comfort.
+                </span>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      updateSetting('voiceExpressiveness', 'expressive');
+                      updateSetting('voicePitch', 1.18);
+                      updateSetting('voiceRate', 0.90);
+                    }}
+                    className={`p-3.5 rounded-2xl border-2 text-left transition flex items-start gap-3 ${
+                      (settings.voiceExpressiveness ?? 'expressive') === 'expressive'
+                        ? 'border-amber-400 bg-amber-50/70 shadow-sm'
+                        : 'border-slate-200 hover:border-slate-300 bg-white'
+                    }`}
+                  >
+                    <span className="text-2xl">🌟</span>
+                    <div>
+                      <div className="font-extrabold text-slate-900 text-sm">
+                        Expressive & Cheerful (Recommended)
+                      </div>
+                      <div className="text-xs text-slate-600 mt-0.5">
+                        Joyful pitch inflection, musical tone, and enthusiastic celebration.
+                      </div>
+                    </div>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      updateSetting('voiceExpressiveness', 'calm');
+                      updateSetting('voicePitch', 1.05);
+                      updateSetting('voiceRate', 0.85);
+                    }}
+                    className={`p-3.5 rounded-2xl border-2 text-left transition flex items-start gap-3 ${
+                      settings.voiceExpressiveness === 'calm'
+                        ? 'border-emerald-500 bg-emerald-50/70 shadow-sm'
+                        : 'border-slate-200 hover:border-slate-300 bg-white'
+                    }`}
+                  >
+                    <span className="text-2xl">🌿</span>
+                    <div>
+                      <div className="font-extrabold text-slate-900 text-sm">
+                        Calm & Gentle
+                      </div>
+                      <div className="text-xs text-slate-600 mt-0.5">
+                        Soft, low-stimulation cadence for sensory-sensitive moments.
+                      </div>
+                    </div>
+                  </button>
+                </div>
+              </div>
+
+              {/* Pitch & Rate Sliders */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-1">
+                <div>
+                  <div className="flex justify-between items-center mb-1.5">
+                    <span className="font-bold text-slate-800 text-sm">Voice Pitch (Melody Warmth)</span>
+                    <span className="font-bold text-amber-700 text-xs">
+                      {(settings.voicePitch ?? 1.18) > 1.12 ? 'Melodic / Cheerful' : 'Gentle / Calm'} ({((settings.voicePitch ?? 1.18)).toFixed(2)}x)
+                    </span>
+                  </div>
+                  <input
+                    type="range"
+                    min="0.85"
+                    max="1.4"
+                    step="0.02"
+                    value={settings.voicePitch ?? 1.18}
+                    onChange={(e) => updateSetting('voicePitch', parseFloat(e.target.value))}
+                    className="w-full accent-amber-500 cursor-pointer"
+                  />
+                </div>
+
+                <div>
+                  <div className="flex justify-between items-center mb-1.5">
+                    <span className="font-bold text-slate-800 text-sm">Speaking Pace (Speed)</span>
+                    <span className="font-bold text-amber-700 text-xs">
+                      {(settings.voiceRate ?? 0.90) <= 0.85 ? 'Deliberate / Slow' : 'Natural Rhythm'} ({((settings.voiceRate ?? 0.90)).toFixed(2)}x)
+                    </span>
+                  </div>
+                  <input
+                    type="range"
+                    min="0.70"
+                    max="1.15"
+                    step="0.02"
+                    value={settings.voiceRate ?? 0.90}
+                    onChange={(e) => updateSetting('voiceRate', parseFloat(e.target.value))}
+                    className="w-full accent-amber-500 cursor-pointer"
+                  />
+                </div>
+              </div>
+
+              {/* Interactive Voice Previews */}
+              <div className="pt-2 border-t border-slate-100">
+                <span className="text-xs font-bold uppercase tracking-wider text-slate-500 block mb-2">
+                  Hear Voice Samples (Indian English Female)
+                </span>
+                <div className="flex flex-wrap gap-2.5">
+                  <button
+                    type="button"
+                    onClick={() =>
+                      speakWord('BALL', undefined, settings.soundVolume, {
+                        isCelebration: true,
+                        pitch: settings.voicePitch,
+                        rate: settings.voiceRate,
+                        voiceURI: settings.selectedVoiceURI,
+                      })
+                    }
+                    className="px-4 py-2 rounded-xl bg-amber-50 text-amber-800 font-bold text-sm border border-amber-200 hover:bg-amber-100 flex items-center gap-1.5 active:scale-95 transition"
+                  >
+                    <Volume2 className="w-4 h-4 text-amber-600" />
+                    <span>Word: "BALL!"</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() =>
+                      speakLetter('B', true, settings.soundVolume, {
+                        pitch: settings.voicePitch,
+                        rate: settings.voiceRate,
+                        voiceURI: settings.selectedVoiceURI,
+                      })
+                    }
+                    className="px-4 py-2 rounded-xl bg-sky-50 text-sky-800 font-bold text-sm border border-sky-200 hover:bg-sky-100 flex items-center gap-1.5 active:scale-95 transition"
+                  >
+                    <Volume2 className="w-4 h-4 text-sky-600" />
+                    <span>Phonics: "buh!"</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() =>
+                      speakPraise('BALL', settings.soundVolume, {
+                        pitch: settings.voicePitch,
+                        rate: settings.voiceRate,
+                        voiceURI: settings.selectedVoiceURI,
+                      })
+                    }
+                    className="px-4 py-2 rounded-xl bg-emerald-50 text-emerald-800 font-bold text-sm border border-emerald-200 hover:bg-emerald-100 flex items-center gap-1.5 active:scale-95 transition"
+                  >
+                    <Volume2 className="w-4 h-4 text-emerald-600" />
+                    <span>Praise: "Super! BALL!"</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => playCelebrationMelody(settings.soundVolume)}
+                    className="px-4 py-2 rounded-xl bg-purple-50 text-purple-800 font-bold text-sm border border-purple-200 hover:bg-purple-100 flex items-center gap-1.5 active:scale-95 transition"
+                  >
+                    <Volume2 className="w-4 h-4 text-purple-600" />
+                    <span>Chime</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {/* Standard Sound & Phonics Toggles */}
+            <div className="bg-white rounded-3xl p-6 shadow-soft border border-slate-200 space-y-5">
+              <h3 className="text-xl font-black text-slate-800 mb-2">Sound Options</h3>
 
               {/* Phonics Sound */}
               <div className="flex items-center justify-between">
                 <div>
                   <span className="font-bold text-slate-800 block text-lg">Say Letter Phonics Sounds</span>
                   <span className="text-sm text-slate-500">
-                    Speaks phonetic sound (B → "buh", A → "ah") when completing a letter
+                    Speaks phonetic sound (B → "buh!", A → "ah!") when completing a letter
                   </span>
                 </div>
                 <input
@@ -569,7 +819,7 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
               <div className="flex items-center justify-between">
                 <div>
                   <span className="font-bold text-slate-800 block text-lg">Speak Whole Word on Completion</span>
-                  <span className="text-sm text-slate-500">Pronounces whole word (e.g. "BALL")</span>
+                  <span className="text-sm text-slate-500">Pronounces whole word with expressive joy (e.g. "BALL!")</span>
                 </div>
                 <input
                   type="checkbox"
@@ -597,10 +847,10 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
 
               <hr className="border-slate-100" />
 
-              {/* Volume Slider */}
+              {/* Master Volume Slider */}
               <div>
                 <div className="flex justify-between items-center mb-2">
-                  <span className="font-bold text-slate-800 text-lg">Sound Volume</span>
+                  <span className="font-bold text-slate-800 text-lg">Master Volume</span>
                   <span className="font-bold text-sky-700">{Math.round(settings.soundVolume * 100)}%</span>
                 </div>
                 <input
@@ -612,26 +862,6 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
                   onChange={(e) => updateSetting('soundVolume', parseFloat(e.target.value))}
                   className="w-full accent-sky-600 cursor-pointer"
                 />
-              </div>
-
-              {/* Test Audio Button */}
-              <div className="pt-2 flex gap-3">
-                <button
-                  type="button"
-                  onClick={() => speakWord('BALL')}
-                  className="px-5 py-2.5 rounded-xl bg-sky-50 text-sky-700 font-bold border border-sky-200 hover:bg-sky-100 flex items-center gap-2"
-                >
-                  <Volume2 className="w-4 h-4" />
-                  <span>Test Word Voice</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => playCelebrationMelody(settings.soundVolume)}
-                  className="px-5 py-2.5 rounded-xl bg-purple-50 text-purple-700 font-bold border border-purple-200 hover:bg-purple-100 flex items-center gap-2"
-                >
-                  <Volume2 className="w-4 h-4" />
-                  <span>Test Chime</span>
-                </button>
               </div>
             </div>
           </div>

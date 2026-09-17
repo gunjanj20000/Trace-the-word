@@ -94,4 +94,8 @@ export const DEFAULT_SETTINGS: Settings = {
   parentGateType: 'hold',
   soundVolume: 0.85,
   selectedCategory: 'all',
+  voiceAccent: 'en-IN',
+  voicePitch: 1.18,
+  voiceRate: 0.90,
+  voiceExpressiveness: 'expressive',
 };

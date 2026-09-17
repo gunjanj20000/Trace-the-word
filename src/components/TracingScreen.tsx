@@ -106,10 +106,15 @@ export const TracingScreen: React.FC<TracingScreenProps> = ({
       playCelebrationMelody(settings.soundVolume);
     }
 
-    // Speak word audio after brief pause
+    // Speak word audio after brief pause with joyful expressive tone
     if (settings.wordAudioEnabled) {
       setTimeout(() => {
-        speakWord(wordText, currentWord?.audioId, settings.soundVolume);
+        speakWord(wordText, currentWord?.audioId, settings.soundVolume, {
+          isCelebration: true,
+          pitch: settings.voicePitch,
+          rate: settings.voiceRate,
+          voiceURI: settings.selectedVoiceURI,
+        });
       }, 600);
     }
 
@@ -143,9 +148,18 @@ export const TracingScreen: React.FC<TracingScreenProps> = ({
   // Replay word / letter audio
   const handleAudioPlay = () => {
     if (isWordCompleted) {
-      speakWord(wordText, currentWord?.audioId, settings.soundVolume);
+      speakWord(wordText, currentWord?.audioId, settings.soundVolume, {
+        isCelebration: true,
+        pitch: settings.voicePitch,
+        rate: settings.voiceRate,
+        voiceURI: settings.selectedVoiceURI,
+      });
     } else {
-      speakLetter(currentLetter, settings.phonicsEnabled, settings.soundVolume);
+      speakLetter(currentLetter, settings.phonicsEnabled, settings.soundVolume, {
+        pitch: settings.voicePitch,
+        rate: settings.voiceRate,
+        voiceURI: settings.selectedVoiceURI,
+      });
     }
   };
 
@@ -284,6 +298,9 @@ export const TracingScreen: React.FC<TracingScreenProps> = ({
                 showStartPoint={settings.showStartPoint}
                 soundVolume={settings.soundVolume}
                 phonicsEnabled={settings.phonicsEnabled}
+                voicePitch={settings.voicePitch}
+                voiceRate={settings.voiceRate}
+                voiceURI={settings.selectedVoiceURI}
                 onComplete={handleLetterComplete}
                 className="w-full h-full"
               />

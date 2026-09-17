@@ -32,7 +32,11 @@ export const FreePracticeScreen: React.FC<FreePracticeProps> = ({
   };
 
   const handleHearLetter = () => {
-    speakLetter(selectedLetter, settings.phonicsEnabled, settings.soundVolume);
+    speakLetter(selectedLetter, settings.phonicsEnabled, settings.soundVolume, {
+      pitch: settings.voicePitch,
+      rate: settings.voiceRate,
+      voiceURI: settings.selectedVoiceURI,
+    });
   };
 
   return (
@@ -103,6 +107,9 @@ export const FreePracticeScreen: React.FC<FreePracticeProps> = ({
             showStartPoint={settings.showStartPoint}
             soundVolume={settings.soundVolume}
             phonicsEnabled={settings.phonicsEnabled}
+            voicePitch={settings.voicePitch}
+            voiceRate={settings.voiceRate}
+            voiceURI={settings.selectedVoiceURI}
             onComplete={handleLetterDone}
             className="w-full h-full"
           />
