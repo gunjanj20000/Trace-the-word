@@ -7,123 +7,122 @@ interface RawLetterDef {
 
 export const RAW_LETTERS: Record<string, string[]> = {
   A: [
-    'M 100 35 L 45 205',      // Left diagonal down
-    'M 100 35 L 155 205',     // Right diagonal down
-    'M 68 145 L 132 145',     // Crossbar left to right
+    'M 100 35 L 30 205',      // Left diagonal down
+    'M 100 35 L 170 205',     // Right diagonal down
+    'M 59 135 L 141 135',     // Symmetrical crossbar
   ],
   B: [
-    'M 60 35 L 60 205',                                      // Vertical down
-    'M 60 35 C 135 35, 140 120, 60 120',                    // Top loop
-    'M 60 120 C 145 120, 145 205, 60 205',                   // Bottom loop
+    'M 44 35 L 44 205',                                              // Vertical stem
+    'M 44 35 L 105 35 C 152 35, 152 120, 105 120 L 44 120',          // Upper loop
+    'M 44 120 L 105 120 C 156 120, 156 205, 105 205 L 44 205',        // Lower loop
   ],
   C: [
-    'M 155 65 C 140 35, 60 35, 55 120 C 50 195, 135 210, 155 180', // Curve
+    'M 155 65 C 138 35, 75 35, 45 75 C 28 98, 28 142, 45 165 C 75 205, 138 205, 155 175', // Smooth balanced curve
   ],
   D: [
-    'M 60 35 L 60 205',                                      // Vertical down
-    'M 60 35 C 165 35, 165 205, 60 205',                    // Big curve
+    'M 45 35 L 45 205',                                              // Vertical stem
+    'M 45 35 L 95 35 C 160 35, 160 205, 95 205 L 45 205',            // Wide balanced curve
   ],
   E: [
-    'M 60 35 L 60 205',     // Vertical stem
-    'M 60 35 L 150 35',     // Top bar
-    'M 60 120 L 135 120',   // Middle bar
-    'M 60 205 L 150 205',   // Bottom bar
+    'M 45 35 L 45 205',     // Vertical stem
+    'M 45 35 L 155 35',     // Top bar
+    'M 45 120 L 140 120',   // Middle bar
+    'M 45 205 L 155 205',   // Bottom bar
   ],
   F: [
-    'M 60 35 L 60 205',     // Vertical stem
-    'M 60 35 L 150 35',     // Top bar
-    'M 60 120 L 130 120',   // Middle bar
+    'M 45 35 L 45 205',     // Vertical stem
+    'M 45 35 L 155 35',     // Top bar
+    'M 45 120 L 140 120',   // Middle bar
   ],
   G: [
-    'M 155 65 C 140 35, 60 35, 55 120 C 50 195, 140 210, 155 175 L 155 125', // Curve and right wall
-    'M 155 125 L 115 125',                                                     // Cross inward
+    'M 155 65 C 138 35, 75 35, 45 75 C 28 98, 28 142, 45 165 C 75 205, 138 205, 155 170 L 155 120', // Outer curve
+    'M 155 120 L 110 120',                                                                           // Horizontal cross
   ],
   H: [
-    'M 55 35 L 55 205',     // Left stem
-    'M 145 35 L 145 205',   // Right stem
-    'M 55 120 L 145 120',   // Middle bar
+    'M 45 35 L 45 205',     // Left stem
+    'M 155 35 L 155 205',   // Right stem
+    'M 45 120 L 155 120',   // Centered crossbar
   ],
   I: [
-    'M 60 35 L 140 35',     // Top bar
+    'M 45 35 L 155 35',     // Top bar
     'M 100 35 L 100 205',   // Center stem
-    'M 60 205 L 140 205',   // Bottom bar
+    'M 45 205 L 155 205',   // Bottom bar
   ],
   J: [
-    'M 65 35 L 145 35',                                      // Top bar
-    'M 125 35 L 125 155 C 125 215, 65 215, 60 170',         // Hook down and up
+    'M 45 35 L 155 35',                              // Top bar
+    'M 130 35 L 130 155 C 130 205, 55 205, 55 165',  // Stem and smooth hook
   ],
   K: [
-    'M 60 35 L 60 205',     // Left stem
-    'M 145 45 L 60 125',    // Upper diagonal
-    'M 80 108 L 150 205',   // Lower diagonal
+    'M 45 35 L 45 205',     // Vertical stem
+    'M 155 35 L 45 120',    // Upper diagonal
+    'M 65 105 L 155 205',   // Lower diagonal
   ],
   L: [
-    'M 65 35 L 65 205',     // Vertical stem
-    'M 65 205 L 150 205',   // Bottom bar
+    'M 45 35 L 45 205',     // Vertical stem
+    'M 45 205 L 155 205',   // Generous bottom bar
   ],
   M: [
-    'M 48 205 L 48 35',     // Left stem up
-    'M 48 35 L 100 145',    // Diagonal down
-    'M 100 145 L 152 35',   // Diagonal up
-    'M 152 35 L 152 205',   // Right stem down
+    'M 28 205 L 28 35',     // Left stem up
+    'M 28 35 L 100 165',    // Diagonal down to center
+    'M 100 165 L 172 35',   // Diagonal up to right
+    'M 172 35 L 172 205',   // Right stem down
   ],
   N: [
-    'M 52 205 L 52 35',     // Left stem up
-    'M 52 35 L 148 205',    // Diagonal down
-    'M 148 205 L 148 35',   // Right stem up
+    'M 35 205 L 35 35',     // Left stem up
+    'M 35 35 L 165 205',    // Diagonal down
+    'M 165 205 L 165 35',   // Right stem up
   ],
   O: [
-    // Two half-arcs for easier tracing and clear start point at top
-    'M 100 35 C 45 35, 45 205, 100 205',   // Left half counter-clockwise
-    'M 100 205 C 155 205, 155 35, 100 35', // Right half up to top
+    'M 100 35 C 45 35, 28 75, 28 120 C 28 165, 45 205, 100 205',   // Left half (top to bottom)
+    'M 100 205 C 155 205, 172 165, 172 120 C 172 75, 155 35, 100 35', // Right half (bottom to top)
   ],
   P: [
-    'M 60 35 L 60 205',                    // Stem down
-    'M 60 35 C 145 35, 145 125, 60 125',   // Top loop
+    'M 45 35 L 45 205',                                              // Vertical stem
+    'M 45 35 L 105 35 C 155 35, 155 120, 105 120 L 45 120',          // Symmetrical upper loop
   ],
   Q: [
-    'M 100 35 C 45 35, 45 205, 100 205',   // Left half
-    'M 100 205 C 155 205, 155 35, 100 35', // Right half
-    'M 115 155 L 160 210',                  // Tail
+    'M 100 35 C 45 35, 28 75, 28 120 C 28 165, 45 205, 100 205',   // Left half
+    'M 100 205 C 155 205, 172 165, 172 120 C 172 75, 155 35, 100 35', // Right half
+    'M 115 145 L 168 205',                                          // Diagonal tail
   ],
   R: [
-    'M 60 35 L 60 205',                    // Stem down
-    'M 60 35 C 145 35, 145 125, 60 125',   // Top loop
-    'M 100 125 L 150 205',                 // Leg
+    'M 45 35 L 45 205',                                              // Vertical stem
+    'M 45 35 L 105 35 C 155 35, 155 120, 105 120 L 45 120',          // Loop
+    'M 95 120 L 155 205',                                            // Leg
   ],
   S: [
-    'M 148 65 C 135 35, 65 35, 65 80 C 65 140, 145 125, 145 170 C 145 215, 65 215, 52 180',
+    'M 152 68 C 140 35, 58 35, 58 78 C 58 120, 142 120, 142 162 C 142 205, 60 205, 48 172', // Balanced S curve
   ],
   T: [
-    'M 40 35 L 160 35',     // Top bar
-    'M 100 35 L 100 205',   // Center stem
+    'M 25 35 L 175 35',     // Wide top bar
+    'M 100 35 L 100 205',   // Centered vertical stem
   ],
   U: [
-    'M 55 35 L 55 145 C 55 215, 145 215, 145 145 L 145 35', // Down, curve, up
+    'M 42 35 L 42 145 C 42 205, 158 205, 158 145 L 158 35', // Symmetric U curve
   ],
   V: [
-    'M 45 35 L 100 205',    // Diagonal down
-    'M 100 205 L 155 35',   // Diagonal up
+    'M 32 35 L 100 205',    // Diagonal down
+    'M 100 205 L 168 35',   // Diagonal up
   ],
   W: [
-    'M 42 35 L 68 205',     // Slant down
-    'M 68 205 L 100 95',    // Slant up
-    'M 100 95 L 132 205',   // Slant down
-    'M 132 205 L 158 35',   // Slant up
+    'M 20 35 L 56 205',     // Left diagonal down
+    'M 56 205 L 100 95',    // First diagonal up
+    'M 100 95 L 144 205',   // Second diagonal down
+    'M 144 205 L 180 35',   // Right diagonal up
   ],
   X: [
-    'M 50 35 L 150 205',    // Diagonal top-left to bottom-right
-    'M 150 35 L 50 205',    // Diagonal top-right to bottom-left
+    'M 30 35 L 170 205',    // Diagonal top-left to bottom-right
+    'M 170 35 L 30 205',    // Diagonal top-right to bottom-left
   ],
   Y: [
-    'M 48 35 L 100 115',    // Left slant to center
-    'M 152 35 L 100 115',   // Right slant to center
-    'M 100 115 L 100 205',  // Center stem down
+    'M 32 35 L 100 120',    // Left slant to center
+    'M 168 35 L 100 120',   // Right slant to center
+    'M 100 120 L 100 205',  // Center vertical stem down
   ],
   Z: [
-    'M 50 40 L 150 40',     // Top bar
-    'M 150 40 L 50 205',    // Diagonal down-left
-    'M 50 205 L 150 205',   // Bottom bar
+    'M 35 35 L 165 35',     // Top bar
+    'M 165 35 L 35 205',    // Symmetrical diagonal
+    'M 35 205 L 165 205',   // Bottom bar
   ],
 };
 
