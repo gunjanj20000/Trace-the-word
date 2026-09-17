@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Settings, Word } from '../types';
 import { Play, Sparkles, Settings as SettingsIcon, BookOpen, Star, Award, Layers } from 'lucide-react';
 import { ParentGate } from './ParentGate';
+import { getThemeConfig } from '../theme/themeConfig';
 
 interface HomeScreenProps {
   onStart: () => void;
@@ -27,6 +28,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
   const [showParentGate, setShowParentGate] = useState(false);
   const [showPracticeMenu, setShowPracticeMenu] = useState(false);
 
+  const themeConfig = getThemeConfig(settings.theme);
   const favoriteCount = words.filter((w) => w.favorite).length;
 
   const handleSettingsClick = () => {
@@ -38,7 +40,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
   };
 
   return (
-    <div className="relative flex flex-col h-full w-full bg-gradient-to-br from-sky-100 via-indigo-50 to-purple-100 overflow-hidden select-none">
+    <div className={`relative flex flex-col h-full w-full ${themeConfig.bgMain} overflow-hidden select-none transition-colors duration-500`}>
       {/* Parent Gate Modal */}
       <ParentGate
         isOpen={showParentGate}
@@ -66,7 +68,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
           <button
             onClick={onOpenProgress}
             aria-label="View Progress"
-            className="h-13 px-4 py-2 rounded-2xl bg-white/90 backdrop-blur shadow-soft border border-sky-100 flex items-center gap-2 text-slate-700 font-bold hover:bg-white active:scale-95 transition"
+            className="h-13 px-4 py-2 rounded-2xl bg-white/90 backdrop-blur shadow-soft border border-slate-200/60 flex items-center gap-2 text-slate-700 font-bold hover:bg-white active:scale-95 transition"
           >
             <Award className="w-6 h-6 text-amber-500" />
             <span className="hidden sm:inline">Progress</span>
@@ -89,19 +91,19 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
         {/* Playful App Mascot Icon & Title Column */}
         <div className="flex flex-col items-center justify-center [@media(max-height:550px)]:max-w-xs">
           <div className="relative mb-2 sm:mb-4 [@media(max-height:550px)]:mb-2 animate-float-gentle">
-            <div className="w-24 h-24 sm:w-36 sm:h-36 md:w-44 md:h-44 [@media(max-height:550px)]:w-20 [@media(max-height:550px)]:h-20 rounded-3xl bg-gradient-to-tr from-sky-400 to-sky-600 shadow-xl flex items-center justify-center p-3 border-4 border-white">
+            <div className={`w-24 h-24 sm:w-36 sm:h-36 md:w-44 md:h-44 [@media(max-height:550px)]:w-20 [@media(max-height:550px)]:h-20 rounded-3xl bg-gradient-to-tr ${themeConfig.mascotGradient} shadow-xl flex items-center justify-center p-3 border-4 border-white`}>
               <img src="/icon.svg" alt="Trace Words" className="w-full h-full object-contain filter drop-shadow-md" />
             </div>
-            <div className="absolute -top-2 -right-2 bg-amber-400 text-amber-900 rounded-full p-2 shadow-lg animate-bounce">
+            <div className={`absolute -top-2 -right-2 ${themeConfig.mascotBadge} rounded-full p-2 shadow-lg animate-bounce`}>
               <Sparkles className="w-5 h-5 sm:w-6 sm:h-6" />
             </div>
           </div>
 
           {/* Large App Title */}
-          <h1 className="text-4xl sm:text-6xl md:text-7xl [@media(max-height:550px)]:text-3xl font-black tracking-tight text-slate-800 mb-1">
-            TRACE <span className="text-sky-600">A</span> WORD
+          <h1 className={`text-4xl sm:text-6xl md:text-7xl [@media(max-height:550px)]:text-3xl font-black tracking-tight ${themeConfig.titlePrimary} mb-1`}>
+            TRACE <span className={themeConfig.titleAccent}>A</span> WORD
           </h1>
-          <p className="text-base sm:text-xl font-bold text-slate-500 mb-2 sm:mb-6 [@media(max-height:550px)]:hidden">
+          <p className={`text-base sm:text-xl font-bold ${themeConfig.subtitleColor} mb-2 sm:mb-6 [@media(max-height:550px)]:hidden`}>
             Calm & gentle letter tracing for early words
           </p>
         </div>
@@ -112,7 +114,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
           <button
             onClick={onStart}
             aria-label="Start Tracing"
-            className="w-full h-16 sm:h-20 md:h-22 [@media(max-height:550px)]:h-14 rounded-3xl bg-gradient-to-r from-sky-500 to-sky-600 hover:from-sky-600 hover:to-sky-700 text-white font-black text-2xl sm:text-3xl md:text-4xl [@media(max-height:550px)]:text-2xl shadow-xl flex items-center justify-center gap-3 sm:gap-4 active:scale-95 transition transform hover:scale-[1.02]"
+            className={`w-full h-16 sm:h-20 md:h-22 [@media(max-height:550px)]:h-14 rounded-3xl ${themeConfig.btnStart} font-black text-2xl sm:text-3xl md:text-4xl [@media(max-height:550px)]:text-2xl flex items-center justify-center gap-3 sm:gap-4 active:scale-95 transition transform hover:scale-[1.02]`}
           >
             <Play className="w-7 h-7 sm:w-10 sm:h-10 fill-current" />
             <span>START</span>
@@ -122,9 +124,9 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
           <button
             onClick={() => setShowPracticeMenu(true)}
             aria-label="Practice Modes"
-            className="w-full h-14 sm:h-16 md:h-18 [@media(max-height:550px)]:h-12 rounded-3xl bg-white hover:bg-amber-50/50 text-slate-800 font-extrabold text-xl sm:text-2xl [@media(max-height:550px)]:text-lg shadow-soft border-2 border-amber-200 flex items-center justify-center gap-3 active:scale-95 transition"
+            className={`w-full h-14 sm:h-16 md:h-18 [@media(max-height:550px)]:h-12 rounded-3xl ${themeConfig.btnPractice} font-extrabold text-xl sm:text-2xl [@media(max-height:550px)]:text-lg flex items-center justify-center gap-3 active:scale-95 transition`}
           >
-            <Star className="w-6 h-6 text-amber-500 fill-amber-400" />
+            <Star className={`w-6 h-6 ${themeConfig.btnPracticeIcon}`} />
             <span>PRACTICE</span>
           </button>
 
@@ -132,9 +134,9 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
           {favoriteCount > 0 && (
             <button
               onClick={onOpenFavorites}
-              className="w-full h-12 sm:h-14 [@media(max-height:550px)]:h-10 rounded-2xl bg-white/80 hover:bg-white text-purple-700 font-bold text-base sm:text-lg [@media(max-height:550px)]:text-sm shadow-sm border border-purple-100 flex items-center justify-center gap-2 active:scale-95 transition"
+              className={`w-full h-12 sm:h-14 [@media(max-height:550px)]:h-10 rounded-2xl ${themeConfig.btnMyWords} font-bold text-base sm:text-lg [@media(max-height:550px)]:text-sm flex items-center justify-center gap-2 active:scale-95 transition`}
             >
-              <BookOpen className="w-4 h-4 sm:w-5 sm:h-5 text-purple-600" />
+              <BookOpen className="w-4 h-4 sm:w-5 sm:h-5" />
               <span>⭐ My Words ({favoriteCount})</span>
             </button>
           )}

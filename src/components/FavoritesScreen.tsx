@@ -1,34 +1,38 @@
 import React from 'react';
-import { Word } from '../types';
+import { Word, Settings } from '../types';
 import { WordImage } from './WordImage';
 import { ArrowLeft, Star, Play } from 'lucide-react';
+import { getThemeConfig } from '../theme/themeConfig';
 
 interface FavoritesScreenProps {
   words: Word[];
+  settings?: Settings;
   onBack: () => void;
   onSelectWord: (wordIndex: number) => void;
 }
 
 export const FavoritesScreen: React.FC<FavoritesScreenProps> = ({
   words,
+  settings,
   onBack,
   onSelectWord,
 }) => {
   const favoriteWords = words.filter((w) => w.favorite && w.enabled);
+  const themeConfig = getThemeConfig(settings?.theme);
 
   return (
-    <div className="flex flex-col h-full w-full bg-gradient-to-br from-amber-50 via-white to-purple-50 overflow-hidden select-none">
+    <div className={`flex flex-col h-full w-full ${themeConfig.bgMain} overflow-hidden select-none`}>
       {/* Header */}
-      <header className="flex-none flex items-center justify-between px-6 sm:px-8 py-4 pt-[calc(1rem+var(--safe-top))] bg-white/80 backdrop-blur border-b border-amber-100 z-10">
+      <header className={`flex-none flex items-center justify-between px-6 sm:px-8 py-4 pt-[calc(1rem+var(--safe-top))] ${themeConfig.headerBg} border-b ${themeConfig.cardBorder} z-10`}>
         <button
           onClick={onBack}
           aria-label="Back"
-          className="w-14 h-14 rounded-2xl bg-white hover:bg-slate-100 border border-slate-200 flex items-center justify-center text-slate-700 active:scale-95 transition"
+          className={`w-14 h-14 rounded-2xl ${themeConfig.cardBg} hover:opacity-90 border ${themeConfig.cardBorder} flex items-center justify-center text-slate-700 active:scale-95 transition`}
         >
-          <ArrowLeft className="w-7 h-7" />
+          <ArrowLeft className={`w-7 h-7 ${themeConfig.titleAccent}`} />
         </button>
 
-        <h1 className="text-2xl sm:text-3xl font-black text-amber-700 flex items-center gap-2">
+        <h1 className={`text-2xl sm:text-3xl font-black ${themeConfig.titlePrimary} flex items-center gap-2`}>
           <Star className="w-8 h-8 text-amber-500 fill-amber-400" />
           <span>My Words</span>
         </h1>

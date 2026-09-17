@@ -62,12 +62,12 @@ export const App: React.FC = () => {
 
   if (isLoading || !settings) {
     return (
-      <div className="flex h-full w-full items-center justify-center bg-sky-50">
+      <div className="flex h-full w-full items-center justify-center bg-emerald-50/60">
         <div className="flex flex-col items-center gap-4">
-          <div className="w-20 h-20 rounded-3xl bg-sky-500 shadow-xl flex items-center justify-center animate-bounce">
+          <div className="w-20 h-20 rounded-3xl bg-emerald-600 shadow-xl flex items-center justify-center animate-bounce">
             <span className="text-white text-4xl font-black">A</span>
           </div>
-          <span className="text-xl font-extrabold text-sky-800 tracking-wide">Loading Trace Words...</span>
+          <span className="text-xl font-extrabold text-emerald-900 tracking-wide">Loading Trace Words...</span>
         </div>
       </div>
     );
@@ -109,6 +109,7 @@ export const App: React.FC = () => {
       return (
         <ProgressScreen
           words={words}
+          settings={settings}
           onBack={() => setCurrentScreen('home')}
           onPracticeWord={(wordId) => {
             const idx = words.findIndex((w) => w.id === wordId);
@@ -122,6 +123,7 @@ export const App: React.FC = () => {
       return (
         <FavoritesScreen
           words={words}
+          settings={settings}
           onBack={() => setCurrentScreen('home')}
           onSelectWord={(idx) => {
             setSelectedWordIndex(idx);

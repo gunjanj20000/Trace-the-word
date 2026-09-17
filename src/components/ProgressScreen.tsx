@@ -1,23 +1,28 @@
 import React, { useEffect, useState } from 'react';
-import { Word, DailyProgress, WordProgress } from '../types';
+import { Word, DailyProgress, WordProgress, Settings } from '../types';
 import { getTodayProgress, getTotalStats, getAllProgress } from '../services/db';
 import { ArrowLeft, Star, Award, Heart, CheckCircle2 } from 'lucide-react';
 import { WordImage } from './WordImage';
+import { getThemeConfig } from '../theme/themeConfig';
 
 interface ProgressScreenProps {
   words: Word[];
+  settings?: Settings;
   onBack: () => void;
   onPracticeWord?: (wordId: string) => void;
 }
 
 export const ProgressScreen: React.FC<ProgressScreenProps> = ({
   words,
+  settings,
   onBack,
   onPracticeWord,
 }) => {
   const [today, setToday] = useState<DailyProgress>({ date: '', wordsCompleted: 0, lettersTraced: 0 });
   const [totalStats, setTotalStats] = useState({ totalWordsCompleted: 0, totalLettersTraced: 0, distinctWordsCompleted: 0 });
   const [wordProgressList, setWordProgressList] = useState<WordProgress[]>([]);
+
+  const themeConfig = getThemeConfig(settings?.theme);
 
   useEffect(() => {
     getTodayProgress().then(setToday);
@@ -28,15 +33,15 @@ export const ProgressScreen: React.FC<ProgressScreenProps> = ({
   const favoriteWords = words.filter((w) => w.favorite);
 
   return (
-    <div className="flex flex-col h-full w-full bg-slate-50 overflow-hidden select-none">
+    <div className={`flex flex-col h-full w-full ${themeConfig.bgMain} overflow-hidden select-none`}>
       {/* Header */}
-      <header className="flex-none flex items-center justify-between px-6 sm:px-8 py-4 pt-[calc(1rem+var(--safe-top))] bg-white border-b border-slate-200 z-10">
+      <header className={`flex-none flex items-center justify-between px-6 sm:px-8 py-4 pt-[calc(1rem+var(--safe-top))] ${themeConfig.headerBg} border-b ${themeConfig.cardBorder} z-10`}>
         <button
           onClick={onBack}
           aria-label="Back"
-          className="w-14 h-14 rounded-2xl bg-slate-100 hover:bg-slate-200 flex items-center justify-center text-slate-700 active:scale-95 transition"
+          className={`w-14 h-14 rounded-2xl ${themeConfig.cardBg} hover:opacity-90 border ${themeConfig.cardBorder} flex items-center justify-center text-slate-700 active:scale-95 transition`}
         >
-          <ArrowLeft className="w-7 h-7" />
+          <ArrowLeft className={`w-7 h-7 ${themeConfig.titleAccent}`} />
         </button>
 
         <h1 className="text-2xl sm:text-3xl font-black text-slate-800 flex items-center gap-2">

@@ -108,6 +108,9 @@ export async function initStorage(): Promise<{
   if (!settingsObj) {
     settingsObj = { id: 'app-settings', ...DEFAULT_SETTINGS };
     await db.put('settings', settingsObj);
+  } else if (!settingsObj.theme) {
+    settingsObj = { ...settingsObj, theme: 'forest' };
+    await db.put('settings', settingsObj);
   }
 
   const [words, categories] = await Promise.all([
@@ -170,7 +173,7 @@ export async function getSettings(): Promise<Settings> {
   const s = await db.get('settings', 'app-settings');
   if (s) {
     const { id, ...rest } = s;
-    return rest;
+    return { ...DEFAULT_SETTINGS, ...rest, theme: rest.theme || DEFAULT_SETTINGS.theme };
   }
   return DEFAULT_SETTINGS;
 }

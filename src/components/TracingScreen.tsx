@@ -5,6 +5,7 @@ import { WordImage } from './WordImage';
 import { Celebration } from './Celebration';
 import { speakWord, playCelebrationMelody, speakLetter } from '../services/audio';
 import { recordWordCompletion, recordLetterTraced, toggleWordFavorite } from '../services/db';
+import { getThemeConfig } from '../theme/themeConfig';
 import { Home, ArrowRight, RotateCcw, Volume2, Star, Sparkles } from 'lucide-react';
 
 interface TracingScreenProps {
@@ -22,6 +23,7 @@ export const TracingScreen: React.FC<TracingScreenProps> = ({
   mode = 'guided',
   initialWordIndex = 0,
 }) => {
+  const themeConfig = getThemeConfig(settings.theme);
   const [currentWordIdx, setCurrentWordIdx] = useState<number>(initialWordIndex);
   const [currentLetterIdx, setCurrentLetterIdx] = useState<number>(0);
   const [isWordCompleted, setIsWordCompleted] = useState<boolean>(false);
@@ -171,7 +173,7 @@ export const TracingScreen: React.FC<TracingScreenProps> = ({
   }
 
   return (
-    <div className="relative flex flex-col h-full w-full bg-gradient-to-b from-sky-50/80 via-white to-sky-100/60 overflow-hidden select-none">
+    <div className={`relative flex flex-col h-full w-full ${themeConfig.bgMain} overflow-hidden select-none transition-colors duration-500`}>
       {/* Gentle Celebration Overlay */}
       {isWordCompleted && (
         <Celebration
@@ -187,13 +189,13 @@ export const TracingScreen: React.FC<TracingScreenProps> = ({
         <button
           onClick={onHome}
           aria-label="Back to Home"
-          className="w-14 h-14 sm:w-16 sm:h-16 rounded-3xl bg-white shadow-soft border-2 border-sky-100 flex items-center justify-center text-slate-700 active:scale-95 transition-transform hover:bg-sky-50"
+          className="w-14 h-14 sm:w-16 sm:h-16 rounded-3xl bg-white shadow-soft border-2 border-slate-200/70 flex items-center justify-center text-slate-700 active:scale-95 transition-transform hover:bg-slate-50"
         >
-          <Home className="w-7 h-7 sm:w-8 sm:h-8 text-sky-600" />
+          <Home className={`w-7 h-7 sm:w-8 sm:h-8 ${themeConfig.titleAccent}`} />
         </button>
 
         {/* Word Letter Indicators */}
-        <div className="flex items-center gap-2 sm:gap-4 bg-white/90 backdrop-blur px-4 sm:px-6 py-2 rounded-3xl shadow-soft border border-sky-100">
+        <div className="flex items-center gap-2 sm:gap-4 bg-white/90 backdrop-blur px-4 sm:px-6 py-2 rounded-3xl shadow-soft border border-slate-200/70">
           {letters.map((char, idx) => {
             const isDone = isWordCompleted || idx < currentLetterIdx;
             const isCurrent = !isWordCompleted && idx === currentLetterIdx;
@@ -210,10 +212,10 @@ export const TracingScreen: React.FC<TracingScreenProps> = ({
                 }}
                 className={`w-11 h-12 sm:w-14 sm:h-16 rounded-2xl flex items-center justify-center font-extrabold text-2xl sm:text-3xl transition-all duration-300 ${
                   isDone
-                    ? 'bg-emerald-500 text-white shadow-md'
+                    ? themeConfig.pillDone
                     : isCurrent
-                    ? 'bg-sky-500 text-white shadow-lg ring-4 ring-sky-200 scale-105 animate-pulse-subtle'
-                    : 'bg-slate-100 text-slate-400'
+                    ? themeConfig.pillActive
+                    : themeConfig.pillInactive
                 }`}
               >
                 {char}
@@ -227,7 +229,7 @@ export const TracingScreen: React.FC<TracingScreenProps> = ({
           <button
             onClick={handleToggleFavorite}
             aria-label="Toggle Favorite"
-            className={`w-14 h-14 sm:w-16 sm:h-16 rounded-3xl bg-white shadow-soft border-2 border-sky-100 flex items-center justify-center active:scale-95 transition-transform ${
+            className={`w-14 h-14 sm:w-16 sm:h-16 rounded-3xl bg-white shadow-soft border-2 border-slate-200/70 flex items-center justify-center active:scale-95 transition-transform ${
               currentWord.favorite ? 'text-amber-400' : 'text-slate-300 hover:text-slate-400'
             }`}
           >
@@ -242,7 +244,7 @@ export const TracingScreen: React.FC<TracingScreenProps> = ({
           /* WORD COMPLETION CELEBRATION VIEW */
           <div className="flex flex-col items-center justify-center max-w-lg w-full text-center animate-fade-in z-20">
             {/* Word Heading */}
-            <h1 className="text-6xl sm:text-7xl md:text-8xl font-black text-sky-700 tracking-wider mb-3 sm:mb-6 animate-bounce">
+            <h1 className={`text-6xl sm:text-7xl md:text-8xl font-black ${themeConfig.titleAccent} tracking-wider mb-3 sm:mb-6 animate-bounce`}>
               {wordText}
             </h1>
 
@@ -254,7 +256,7 @@ export const TracingScreen: React.FC<TracingScreenProps> = ({
             {/* Audio Hear Again */}
             <button
               onClick={handleAudioPlay}
-              className="mt-2 mb-4 px-6 py-3 rounded-full bg-sky-100 hover:bg-sky-200 text-sky-800 font-bold text-lg flex items-center gap-2 transition active:scale-95"
+              className={`mt-2 mb-4 px-6 py-3 rounded-full ${themeConfig.btnMyWords} font-bold text-lg flex items-center gap-2 transition active:scale-95`}
             >
               <Volume2 className="w-6 h-6" />
               <span>Hear "{wordText}"</span>
@@ -265,9 +267,9 @@ export const TracingScreen: React.FC<TracingScreenProps> = ({
           <div className="w-full h-full flex flex-col items-center justify-center max-w-2xl">
             {/* If Word Mode, show small thumbnail of word beside/above */}
             {mode === 'word' && (
-              <div className="flex items-center gap-3 mb-2 bg-white/80 px-4 py-1.5 rounded-2xl shadow-sm border border-sky-100">
+              <div className="flex items-center gap-3 mb-2 bg-white/90 px-4 py-1.5 rounded-2xl shadow-sm border border-slate-200/70">
                 <span className="text-lg font-bold text-slate-600">Tracing:</span>
-                <span className="text-2xl font-black text-sky-600">{wordText}</span>
+                <span className={`text-2xl font-black ${themeConfig.titleAccent}`}>{wordText}</span>
               </div>
             )}
 
@@ -276,6 +278,7 @@ export const TracingScreen: React.FC<TracingScreenProps> = ({
               <LetterTracer
                 key={`tracer-${currentWord.id}-${currentLetterIdx}-${tracerKey}`}
                 letter={currentLetter}
+                theme={settings.theme}
                 difficulty={settings.tracingDifficulty}
                 showArrows={settings.showArrows}
                 showStartPoint={settings.showStartPoint}
@@ -296,9 +299,9 @@ export const TracingScreen: React.FC<TracingScreenProps> = ({
           onClick={handleResetLetter}
           disabled={isWordCompleted}
           aria-label="Restart Letter"
-          className="h-16 px-5 sm:px-7 rounded-3xl bg-white shadow-soft border-2 border-sky-100 flex items-center gap-2 text-slate-700 font-bold text-lg active:scale-95 transition hover:bg-sky-50 disabled:opacity-40"
+          className="h-16 px-5 sm:px-7 rounded-3xl bg-white shadow-soft border-2 border-slate-200/70 flex items-center gap-2 text-slate-700 font-bold text-lg active:scale-95 transition hover:bg-slate-50 disabled:opacity-40"
         >
-          <RotateCcw className="w-7 h-7 text-sky-600" />
+          <RotateCcw className={`w-7 h-7 ${themeConfig.titleAccent}`} />
           <span className="hidden sm:inline">Clear</span>
         </button>
 
@@ -306,9 +309,9 @@ export const TracingScreen: React.FC<TracingScreenProps> = ({
         <button
           onClick={handleAudioPlay}
           aria-label="Hear Sound"
-          className="h-16 px-6 sm:px-8 rounded-3xl bg-white shadow-soft border-2 border-sky-100 flex items-center gap-3 text-sky-700 font-extrabold text-xl active:scale-95 transition hover:bg-sky-50"
+          className="h-16 px-6 sm:px-8 rounded-3xl bg-white shadow-soft border-2 border-slate-200/70 flex items-center gap-3 text-slate-800 font-extrabold text-xl active:scale-95 transition hover:bg-slate-50"
         >
-          <Volume2 className="w-8 h-8 text-sky-600" />
+          <Volume2 className={`w-8 h-8 ${themeConfig.titleAccent}`} />
           <span className="hidden sm:inline">{isWordCompleted ? 'Word' : 'Sound'}</span>
         </button>
 
@@ -317,7 +320,7 @@ export const TracingScreen: React.FC<TracingScreenProps> = ({
           <button
             onClick={handleNextWord}
             aria-label="Next Word"
-            className="h-16 sm:h-20 px-8 sm:px-12 rounded-3xl bg-gradient-to-r from-emerald-500 to-calmGreen-500 hover:from-emerald-600 hover:to-calmGreen-600 text-white font-black text-2xl sm:text-3xl shadow-xl flex items-center gap-3 active:scale-95 transition-all transform animate-bounce"
+            className={`h-16 sm:h-20 px-8 sm:px-12 rounded-3xl ${themeConfig.btnStart} font-black text-2xl sm:text-3xl shadow-xl flex items-center gap-3 active:scale-95 transition-all transform animate-bounce`}
           >
             <span>NEXT</span>
             <ArrowRight className="w-8 h-8 sm:w-10 sm:h-10 stroke-[3]" />
@@ -333,7 +336,7 @@ export const TracingScreen: React.FC<TracingScreenProps> = ({
               }
             }}
             aria-label="Skip to Next Letter"
-            className="h-16 px-5 sm:px-7 rounded-3xl bg-white shadow-soft border-2 border-sky-100 flex items-center gap-2 text-slate-600 font-bold text-lg active:scale-95 transition hover:bg-sky-50"
+            className="h-16 px-5 sm:px-7 rounded-3xl bg-white shadow-soft border-2 border-slate-200/70 flex items-center gap-2 text-slate-600 font-bold text-lg active:scale-95 transition hover:bg-slate-50"
           >
             <span className="hidden sm:inline">Skip</span>
             <ArrowRight className="w-7 h-7 text-slate-500" />

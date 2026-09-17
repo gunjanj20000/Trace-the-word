@@ -74,6 +74,7 @@ export const DEFAULT_WORDS: Word[] = [
 ];
 
 export const DEFAULT_SETTINGS: Settings = {
+  theme: 'forest',
   childMode: false,
   enabledWordLengths: [3, 4],
   tracingDifficulty: 'easy',

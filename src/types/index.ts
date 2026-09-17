@@ -21,8 +21,10 @@ export interface Category {
 export type TracingDifficulty = 'easy' | 'medium' | 'advanced';
 export type ParentGateType = 'hold' | 'math' | 'none';
 export type CelebrationStyle = 'stars' | 'balloons' | 'sparkles' | 'confetti';
+export type AppTheme = 'forest' | 'sunset' | 'cosmic' | 'lavender' | 'classic';
 
 export interface Settings {
+  theme: AppTheme;
   childMode: boolean;
   enabledWordLengths: number[]; // e.g. [3, 4]
   tracingDifficulty: TracingDifficulty;

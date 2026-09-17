@@ -1,11 +1,13 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { TracingDifficulty, Point } from '../types';
+import { TracingDifficulty, Point, AppTheme } from '../types';
 import { getLetterDefinition } from '../data/letterPaths';
 import { playStrokeCompleteSound, playLetterCompleteSound, speakLetter } from '../services/audio';
+import { getThemeConfig } from '../theme/themeConfig';
 import { RotateCcw, Sparkles } from 'lucide-react';
 
 interface LetterTracerProps {
   letter: string;
+  theme?: AppTheme;
   difficulty?: TracingDifficulty;
   showArrows?: boolean;
   showStartPoint?: boolean;
@@ -19,6 +21,7 @@ interface LetterTracerProps {
 
 export const LetterTracer: React.FC<LetterTracerProps> = ({
   letter,
+  theme = 'forest',
   difficulty = 'easy',
   showArrows = true,
   showStartPoint = true,
@@ -29,6 +32,7 @@ export const LetterTracer: React.FC<LetterTracerProps> = ({
   className = '',
   isCompact = false,
 }) => {
+  const themeConfig = getThemeConfig(theme);
   const svgRef = useRef<SVGSVGElement | null>(null);
 
   // Get letter definition
@@ -264,21 +268,21 @@ export const LetterTracer: React.FC<LetterTracerProps> = ({
           <defs>
             {/* Gradient for user's active drawn brush stroke */}
             <linearGradient id="userBrushGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-              <stop offset="0%" stopColor="#38bdf8" />
-              <stop offset="100%" stopColor="#0284c7" />
+              <stop offset="0%" stopColor={themeConfig.tracerUserBrush.start} />
+              <stop offset="100%" stopColor={themeConfig.tracerUserBrush.end} />
             </linearGradient>
 
             {/* Gradient for completed strokes */}
             <linearGradient id="completedStrokeGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-              <stop offset="0%" stopColor="#4ade80" />
-              <stop offset="100%" stopColor="#16a34a" />
+              <stop offset="0%" stopColor={themeConfig.tracerCompletedStroke.start} />
+              <stop offset="100%" stopColor={themeConfig.tracerCompletedStroke.end} />
             </linearGradient>
 
             {/* Pulsing start marker gradient */}
             <radialGradient id="startPointGrad">
-              <stop offset="0%" stopColor="#fef08a" />
-              <stop offset="60%" stopColor="#f59e0b" />
-              <stop offset="100%" stopColor="#d97706" />
+              <stop offset="0%" stopColor={themeConfig.tracerStartPoint.start} />
+              <stop offset="60%" stopColor={themeConfig.tracerStartPoint.mid} />
+              <stop offset="100%" stopColor={themeConfig.tracerStartPoint.end} />
             </radialGradient>
           </defs>
 
@@ -288,7 +292,7 @@ export const LetterTracer: React.FC<LetterTracerProps> = ({
               key={`bg-${stroke.id}`}
               d={stroke.pathD}
               fill="none"
-              stroke="#e2e8f0"
+              stroke={themeConfig.tracerGuideBg}
               strokeWidth={guideStrokeWidth}
               strokeLinecap="round"
               strokeLinejoin="round"
@@ -308,7 +312,7 @@ export const LetterTracer: React.FC<LetterTracerProps> = ({
                 key={`track-${stroke.id}`}
                 d={stroke.pathD}
                 fill="none"
-                stroke={isActive ? '#38bdf8' : '#94a3b8'}
+                stroke={isActive ? themeConfig.tracerTrackActive : themeConfig.tracerTrackInactive}
                 strokeWidth={guideStrokeWidth * 0.45}
                 strokeDasharray={isActive ? '10 10' : '6 12'}
                 strokeLinecap="round"
@@ -318,7 +322,7 @@ export const LetterTracer: React.FC<LetterTracerProps> = ({
             );
           })}
 
-          {/* 3. COMPLETED STROKES LAYER: Solid vibrant green */}
+          {/* 3. COMPLETED STROKES LAYER: Solid vibrant themed color */}
           {letterDef.strokes.map((stroke, idx) => {
             if (!completedStrokes.includes(idx)) return null;
             return (
@@ -340,7 +344,7 @@ export const LetterTracer: React.FC<LetterTracerProps> = ({
             <path
               d={activeStrokeCoveredPath}
               fill="none"
-              stroke="#38bdf8"
+              stroke={themeConfig.tracerUserBrush.end}
               strokeWidth={userStrokeWidth}
               strokeLinecap="round"
               strokeLinejoin="round"
@@ -389,7 +393,7 @@ export const LetterTracer: React.FC<LetterTracerProps> = ({
                 cx="0"
                 cy="0"
                 r={tolerance * 0.9}
-                fill="#38bdf8"
+                fill={themeConfig.tracerStartPoint.ring}
                 opacity="0.25"
                 className="animate-ping"
               />
@@ -399,7 +403,7 @@ export const LetterTracer: React.FC<LetterTracerProps> = ({
                 cy="0"
                 r="18"
                 fill="#ffffff"
-                stroke="#f59e0b"
+                stroke={themeConfig.tracerStartPoint.outerStroke}
                 strokeWidth="4"
               />
               {/* Inner glowing dot */}

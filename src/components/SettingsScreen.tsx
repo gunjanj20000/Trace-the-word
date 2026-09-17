@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { Settings, Word, Category, TracingDifficulty, CelebrationStyle, ParentGateType } from '../types';
+import { Settings, Word, Category, TracingDifficulty, CelebrationStyle, ParentGateType, AppTheme } from '../types';
+import { THEMES, getThemeConfig } from '../theme/themeConfig';
 import { WordImage } from './WordImage';
 import { WordModal } from './WordModal';
 import {
@@ -62,6 +63,8 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
   // New category inline input
   const [newCatName, setNewCatName] = useState('');
   const [showAddCat, setShowAddCat] = useState(false);
+
+  const themeConfig = getThemeConfig(settings.theme);
 
   // Notification helper
   const showNotice = (msg: string) => {
@@ -231,7 +234,7 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
         </button>
 
         <h1 className="text-2xl sm:text-3xl font-black text-slate-800 flex items-center gap-3">
-          <SettingsIcon className="w-8 h-8 text-sky-600" />
+          <SettingsIcon className={`w-8 h-8 ${themeConfig.titleAccent}`} />
           <span>Parent Settings</span>
         </h1>
 
@@ -264,7 +267,7 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
                 onClick={() => setActiveTab(tab.id as TabKey)}
                 className={`px-4 sm:px-5 py-2.5 rounded-2xl font-bold text-base flex items-center gap-2 transition ${
                   isActive
-                    ? 'bg-sky-600 text-white shadow-sm'
+                    ? `${themeConfig.pillDone} shadow-sm`
                     : 'text-slate-600 hover:bg-slate-100'
                 }`}
               >
@@ -563,6 +566,73 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
         {/* 4. VISUAL TAB */}
         {activeTab === 'visual' && (
           <div className="space-y-6">
+            {/* Color Palette & Sensory Theme Selection */}
+            <div className="bg-white rounded-3xl p-6 shadow-soft border border-slate-200 space-y-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="text-xl font-black text-slate-800">Visual Theme & Sensory Palette</h3>
+                  <p className="text-sm text-slate-500">
+                    Select a calming atmosphere tailored for your child. All screens and letter tracing brushes adapt dynamically.
+                  </p>
+                </div>
+                <span className="text-3xl p-2 bg-slate-50 rounded-2xl border border-slate-100">{themeConfig.iconEmoji}</span>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3.5 pt-2">
+                {Object.values(THEMES).map((themeItem) => {
+                  const isSelected = (settings.theme || 'forest') === themeItem.id;
+                  return (
+                    <button
+                      key={themeItem.id}
+                      type="button"
+                      onClick={() => updateSetting('theme', themeItem.id as AppTheme)}
+                      className={`p-4 rounded-2xl border-2 text-left flex flex-col justify-between transition relative overflow-hidden group ${
+                        isSelected
+                          ? 'border-emerald-600 bg-emerald-50/70 shadow-md ring-2 ring-emerald-500/20'
+                          : 'border-slate-200 bg-slate-50/60 hover:bg-slate-100 hover:border-slate-300'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between mb-2">
+                        <div className="flex items-center gap-2.5">
+                          <span className="text-2xl">{themeItem.iconEmoji}</span>
+                          <div>
+                            <span className="font-black text-slate-900 block leading-tight text-base">
+                              {themeItem.name}
+                            </span>
+                            {themeItem.id === 'forest' && (
+                              <span className="inline-block text-[10px] font-bold uppercase tracking-wider text-emerald-800 bg-emerald-100 px-2 py-0.5 rounded-full mt-0.5">
+                                Calming Default
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                        {isSelected && (
+                          <div className="w-6 h-6 rounded-full bg-emerald-600 text-white flex items-center justify-center shrink-0 shadow-sm">
+                            <Check className="w-4 h-4 stroke-[3]" />
+                          </div>
+                        )}
+                      </div>
+
+                      <p className="text-xs text-slate-500 mb-3 leading-relaxed">
+                        {themeItem.subtitle}
+                      </p>
+
+                      {/* Swatch color preview pill */}
+                      <div className="flex items-center gap-1.5 pt-1">
+                        {themeItem.swatchColors.map((color, idx) => (
+                          <div
+                            key={idx}
+                            className="h-3.5 flex-1 rounded-full shadow-inner border border-black/10"
+                            style={{ backgroundColor: color }}
+                          />
+                        ))}
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
             <div className="bg-white rounded-3xl p-6 shadow-soft border border-slate-200 space-y-5">
               <h3 className="text-xl font-black text-slate-800 mb-2">Visual Style & Sensory Comfort</h3>
 
