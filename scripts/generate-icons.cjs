@@ -1,4 +1,8 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+const fs = require('fs');
+const path = require('path');
+const puppeteer = require('puppeteer');
+
+const SVG_CONTENT = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
   <defs>
     <!-- Background Gradient: Calming Emerald to Forest Teal -->
     <linearGradient id="iconBg" x1="0%" y1="0%" x2="100%" y2="100%">
@@ -108,4 +112,69 @@
     <path d="M 0,-24 Q 0,0 -24,0 Q 0,0 0,24 Q 0,0 24,0 Q 0,0 0,-24 Z" fill="#fbbf24"/>
     <circle cx="0" cy="0" r="5" fill="#ffffff"/>
   </g>
-</svg>
+</svg>`;
+
+// Maskable version with 15% inner safe zone padding
+const SVG_MASKABLE = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <linearGradient id="maskBg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#10b981"/>
+      <stop offset="50%" stop-color="#059669"/>
+      <stop offset="100%" stop-color="#047857"/>
+    </linearGradient>
+  </defs>
+  <!-- Full bleed background for any crop shape -->
+  <rect width="512" height="512" fill="url(#maskBg)"/>
+  
+  <!-- Scaled content inside safe zone (80% scale centered) -->
+  <g transform="translate(51.2, 51.2) scale(0.8)">
+    ${SVG_CONTENT.replace(/<svg[^>]*>/, '').replace('</svg>', '')}
+  </g>
+</svg>`;
+
+async function main() {
+  console.log('✨ Generating PWA assets and icons...');
+
+  const publicDir = path.join(__dirname, '..', 'public');
+  
+  // 1. Write SVG icons
+  fs.writeFileSync(path.join(publicDir, 'icon.svg'), SVG_CONTENT, 'utf8');
+  fs.writeFileSync(path.join(publicDir, 'favicon.svg'), SVG_CONTENT, 'utf8');
+  console.log('✓ Wrote icon.svg and favicon.svg');
+
+  // 2. Launch Puppeteer to rasterize PNGs
+  const browser = await puppeteer.launch({
+    executablePath: '/usr/bin/google-chrome',
+    headless: 'new',
+    args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-gpu'],
+  });
+
+  const page = await browser.newPage();
+
+  // Helper to render SVG to PNG file
+  async function renderPng(svg, width, height, outputPath) {
+    await page.setViewport({ width, height, deviceScaleFactor: 2 });
+    const html = `<!DOCTYPE html><html><body style="margin:0;padding:0;background:transparent;overflow:hidden;">
+      <div style="width:${width}px;height:${height}px;display:flex;align-items:center;justify-content:center;">
+        ${svg.replace('width="512"', `width="${width}"`).replace('height="512"', `height="${height}"`)}
+      </div>
+    </body></html>`;
+    await page.setContent(html);
+    await page.screenshot({ path: outputPath, omitBackground: true });
+    console.log(`✓ Generated ${path.basename(outputPath)} (${width}x${height})`);
+  }
+
+  await renderPng(SVG_CONTENT, 192, 192, path.join(publicDir, 'icon-192.png'));
+  await renderPng(SVG_CONTENT, 512, 512, path.join(publicDir, 'icon-512.png'));
+  await renderPng(SVG_MASKABLE, 512, 512, path.join(publicDir, 'icon-maskable-512.png'));
+  await renderPng(SVG_CONTENT, 180, 180, path.join(publicDir, 'apple-touch-icon.png'));
+  await renderPng(SVG_CONTENT, 32, 32, path.join(publicDir, 'favicon.ico'));
+
+  await browser.close();
+  console.log('🎉 All PWA icons generated successfully!');
+}
+
+main().catch(err => {
+  console.error('Failed to generate icons:', err);
+  process.exit(1);
+});

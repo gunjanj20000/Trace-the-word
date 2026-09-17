@@ -1,10 +1,15 @@
-// Trace A Word - Service Worker
-const CACHE_NAME = 'trace-a-word-v1';
+// Trace A Word - Service Worker v2
+const CACHE_NAME = 'trace-a-word-v2';
 const PRECACHE_ASSETS = [
   '/',
   '/index.html',
   '/manifest.json',
-  '/icon.svg'
+  '/icon.svg',
+  '/icon-192.png',
+  '/icon-512.png',
+  '/apple-touch-icon.png',
+  '/favicon.svg',
+  '/favicon.ico'
 ];
 
 self.addEventListener('install', (event) => {
@@ -27,23 +32,44 @@ self.addEventListener('activate', (event) => {
   );
 });
 
+// Listen for messages from client (e.g. update button click)
+self.addEventListener('message', (event) => {
+  if (event.data) {
+    if (event.data.type === 'SKIP_WAITING') {
+      self.skipWaiting();
+    }
+    if (event.data.type === 'CLEAR_CACHE') {
+      caches.keys().then((names) => {
+        return Promise.all(names.map((n) => caches.delete(n)));
+      });
+    }
+  }
+});
+
 self.addEventListener('fetch', (event) => {
-  // Only cache GET requests
   if (event.request.method !== 'GET') return;
 
   const url = new URL(event.request.url);
 
-  // For navigation requests, return cached index.html if offline
+  // For HTML navigation requests, try network first so new code is detected, fallback to cache
   if (event.request.mode === 'navigate') {
     event.respondWith(
-      fetch(event.request).catch(() => {
-        return caches.match('/index.html') || caches.match('/');
-      })
+      fetch(event.request)
+        .then((networkResponse) => {
+          if (networkResponse && networkResponse.status === 200) {
+            const copy = networkResponse.clone();
+            caches.open(CACHE_NAME).then((cache) => cache.put('/index.html', copy));
+          }
+          return networkResponse;
+        })
+        .catch(() => {
+          return caches.match('/index.html') || caches.match('/');
+        })
     );
     return;
   }
 
-  // Stale-while-revalidate for same-origin resources & fonts
+  // Stale-while-revalidate for assets
   event.respondWith(
     caches.match(event.request).then((cachedResponse) => {
       const fetchPromise = fetch(event.request).then((networkResponse) => {
@@ -55,7 +81,6 @@ self.addEventListener('fetch', (event) => {
         }
         return networkResponse;
       }).catch(() => {
-        // Fallback or ignore
         return cachedResponse;
       });
 

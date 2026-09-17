@@ -1,4 +1,5 @@
 {
+  "id": "/tracetheword",
   "short_name": "Trace Words",
   "name": "Trace A Word - Early Word Learning & Tracing",
   "description": "A calm, gentle, sensory-friendly word tracing and early word learning app for children.",
@@ -6,14 +7,52 @@
     {
       "src": "/icon.svg",
       "type": "image/svg+xml",
-      "sizes": "192x192 512x512 any",
-      "purpose": "any maskable"
+      "sizes": "any",
+      "purpose": "any"
+    },
+    {
+      "src": "/icon-192.png",
+      "type": "image/png",
+      "sizes": "192x192",
+      "purpose": "any"
+    },
+    {
+      "src": "/icon-512.png",
+      "type": "image/png",
+      "sizes": "512x512",
+      "purpose": "any"
+    },
+    {
+      "src": "/icon-maskable-512.png",
+      "type": "image/png",
+      "sizes": "512x512",
+      "purpose": "maskable"
     }
   ],
   "start_url": "/",
-  "background_color": "#f0f9ff",
-  "theme_color": "#0284c7",
+  "background_color": "#064e3b",
+  "theme_color": "#059669",
   "display": "standalone",
+  "display_override": ["window-controls-overlay", "standalone", "minimal-ui"],
   "orientation": "any",
-  "scope": "/"
+  "scope": "/",
+  "lang": "en",
+  "dir": "ltr",
+  "categories": ["education", "kids"],
+  "shortcuts": [
+    {
+      "name": "Start Tracing",
+      "short_name": "Trace",
+      "description": "Start tracing words now",
+      "url": "/?screen=tracing",
+      "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Free Practice",
+      "short_name": "Practice",
+      "description": "Free letter practice A-Z",
+      "url": "/?screen=free-practice",
+      "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }]
+    }
+  ]
 }

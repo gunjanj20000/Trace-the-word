@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Settings, Word, Category, TracingDifficulty, CelebrationStyle, ParentGateType, AppTheme } from '../types';
 import { THEMES, getThemeConfig } from '../theme/themeConfig';
 import { WordImage } from './WordImage';
@@ -32,6 +32,8 @@ import {
   RefreshCw,
   Search,
   Lock,
+  Smartphone,
+  Sparkles,
 } from 'lucide-react';
 
 interface SettingsScreenProps {
@@ -70,6 +72,78 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
   const showNotice = (msg: string) => {
     setStatusMessage(msg);
     setTimeout(() => setStatusMessage(null), 3000);
+  };
+
+  // App Update & PWA Install state
+  const [isUpdating, setIsUpdating] = useState(false);
+  const [updateStatus, setUpdateStatus] = useState<string | null>(null);
+  const [canInstallPwa, setCanInstallPwa] = useState<boolean>(
+    typeof window !== 'undefined' && !!(window as any).deferredPwaPrompt
+  );
+
+  useEffect(() => {
+    const handleInstallable = () => setCanInstallPwa(true);
+    window.addEventListener('pwa-installable', handleInstallable);
+    return () => window.removeEventListener('pwa-installable', handleInstallable);
+  }, []);
+
+  const handleInstallApp = async () => {
+    const promptEvent = (window as any).deferredPwaPrompt;
+    if (promptEvent) {
+      promptEvent.prompt();
+      const choice = await promptEvent.userChoice;
+      if (choice && choice.outcome === 'accepted') {
+        showNotice('App successfully added to your device!');
+        setCanInstallPwa(false);
+        (window as any).deferredPwaPrompt = null;
+      }
+    } else {
+      showNotice('To install: open your browser menu and tap "Add to Home Screen" or "Install App".');
+    }
+  };
+
+  const handleUpdateApp = async () => {
+    setIsUpdating(true);
+    setUpdateStatus('Checking for latest code changes...');
+
+    if (!navigator.onLine) {
+      showNotice('Device is offline. Connect to the internet to check for updates.');
+      setUpdateStatus('Offline: Please connect to the internet to update.');
+      setIsUpdating(false);
+      return;
+    }
+
+    try {
+      // 1. Force service worker update check
+      if ('serviceWorker' in navigator) {
+        const registration = await navigator.serviceWorker.getRegistration();
+        if (registration) {
+          await registration.update();
+          if (registration.waiting) {
+            registration.waiting.postMessage({ type: 'SKIP_WAITING' });
+          }
+        }
+      }
+
+      // 2. Clear browser cache storage
+      if ('caches' in window) {
+        const cacheNames = await caches.keys();
+        await Promise.all(cacheNames.map((name) => caches.delete(name)));
+      }
+
+      setUpdateStatus('Latest version fetched! Reloading app...');
+      showNotice('App updated to recent code! Reloading...');
+
+      setTimeout(() => {
+        window.location.reload();
+      }, 1200);
+    } catch (err) {
+      console.warn('Manual update error:', err);
+      setUpdateStatus('Reloading with fresh code...');
+      setTimeout(() => {
+        window.location.reload();
+      }, 800);
+    }
   };
 
   // Update a single setting
@@ -851,6 +925,75 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
         {/* 6. DATA & BACKUP TAB */}
         {activeTab === 'data' && (
           <div className="space-y-6">
+            {/* 1. App Updates & PWA Status */}
+            <div className="bg-white rounded-3xl p-6 shadow-soft border border-slate-200 space-y-4">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div className="flex items-center gap-3.5">
+                  <div className={`w-12 h-12 rounded-2xl ${themeConfig.pillDone} flex items-center justify-center shrink-0`}>
+                    <RefreshCw className={`w-6 h-6 ${isUpdating ? 'animate-spin' : ''}`} />
+                  </div>
+                  <div>
+                    <h3 className="text-xl font-black text-slate-800">App Version & Code Updates</h3>
+                    <p className="text-sm text-slate-500">
+                      Check for updates to pull recent code changes into your installed PWA.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2 self-start sm:self-center">
+                  <span className="text-xs font-bold text-slate-400">Version:</span>
+                  <span className="text-xs font-black text-emerald-800 bg-emerald-50 px-3 py-1.5 rounded-xl border border-emerald-200">
+                    v1.2.0 • 2026.09.17
+                  </span>
+                </div>
+              </div>
+
+              {/* Status pills row */}
+              <div className="flex flex-wrap items-center gap-2 pt-1">
+                <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-100 text-slate-700 text-xs font-bold border border-slate-200">
+                  <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
+                  PWA Ready (Offline Supported)
+                </span>
+
+                <span className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold border ${
+                  navigator.onLine
+                    ? 'bg-emerald-50 text-emerald-800 border-emerald-200'
+                    : 'bg-amber-50 text-amber-800 border-amber-200'
+                }`}>
+                  <span className={`w-2 h-2 rounded-full ${navigator.onLine ? 'bg-emerald-500' : 'bg-amber-500'}`}></span>
+                  {navigator.onLine ? 'Online • Connected to Server' : 'Offline Mode Active'}
+                </span>
+
+                {updateStatus && (
+                  <span className="text-xs font-black text-emerald-700 bg-emerald-50 px-3 py-1.5 rounded-xl border border-emerald-200 animate-fade-in">
+                    {updateStatus}
+                  </span>
+                )}
+              </div>
+
+              {/* Action Buttons */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
+                <button
+                  type="button"
+                  onClick={handleUpdateApp}
+                  disabled={isUpdating}
+                  className={`p-4 rounded-2xl ${themeConfig.btnStart} font-black text-base flex items-center justify-center gap-2.5 transition active:scale-95 disabled:opacity-75 shadow-md`}
+                >
+                  <RefreshCw className={`w-5 h-5 ${isUpdating ? 'animate-spin' : ''}`} />
+                  <span>{isUpdating ? 'CHECKING & UPDATING...' : 'UPDATE APP TO RECENT CODE'}</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={handleInstallApp}
+                  className="p-4 rounded-2xl bg-slate-50 hover:bg-slate-100 border-2 border-slate-200 text-slate-800 font-extrabold text-base flex items-center justify-center gap-2.5 transition active:scale-95"
+                >
+                  <Smartphone className="w-5 h-5 text-emerald-600" />
+                  <span>{canInstallPwa ? 'INSTALL APP ON DEVICE' : 'INSTALL / ADD TO HOME SCREEN'}</span>
+                </button>
+              </div>
+            </div>
+
             {/* Backup & Restore */}
             <div className="bg-white rounded-3xl p-6 shadow-soft border border-slate-200">
               <h3 className="text-xl font-black text-slate-800 mb-1">Backup & Restore</h3>
