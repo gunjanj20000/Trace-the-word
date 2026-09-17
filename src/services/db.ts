@@ -101,6 +101,18 @@ export async function initStorage(): Promise<{
       await tx.store.put(w);
     }
     await tx.done;
+  } else {
+    // Ensure Apple and Ball are sorted to the front for existing databases
+    const apple = existingWords.find((w) => w.id === 'w-apple');
+    const ball = existingWords.find((w) => w.id === 'w-ball');
+    if (apple && apple.createdAt !== 1) {
+      apple.createdAt = 1;
+      await db.put('words', apple);
+    }
+    if (ball && ball.createdAt !== 2) {
+      ball.createdAt = 2;
+      await db.put('words', ball);
+    }
   }
 
   // Initialize Settings
@@ -119,15 +131,23 @@ export async function initStorage(): Promise<{
       settingsObj.phonicsEnabled = false;
       needsUpdate = true;
     }
+    // Ensure 5-letter words are enabled so "APPLE" is included by default
+    if (!settingsObj.enabledWordLengths || !settingsObj.enabledWordLengths.includes(5)) {
+      settingsObj.enabledWordLengths = [3, 4, 5];
+      needsUpdate = true;
+    }
     if (needsUpdate) {
       await db.put('settings', settingsObj);
     }
   }
 
-  const [words, categories] = await Promise.all([
+  const [rawWords, categories] = await Promise.all([
     db.getAll('words'),
     db.getAll('categories'),
   ]);
+
+  // Sort words by createdAt so Apple, Ball, Cat, Dog are presented in clear, natural order
+  const words = rawWords.sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0));
 
   const { id, ...settings } = settingsObj;
   return { words, categories, settings };

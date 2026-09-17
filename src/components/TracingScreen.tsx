@@ -31,8 +31,10 @@ export const TracingScreen: React.FC<TracingScreenProps> = ({
   const [tracerKey, setTracerKey] = useState<number>(0);
 
   const autoNextTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const isAdvancingLetterRef = useRef<boolean>(false);
 
   // Filter words by settings (lengths, category, enabled status)
+  const enabledLengthsStr = (settings.enabledWordLengths || []).join(',');
   useEffect(() => {
     let filtered = words.filter((w) => w.enabled);
 
@@ -61,10 +63,15 @@ export const TracingScreen: React.FC<TracingScreenProps> = ({
     }
 
     setActiveWordList(filtered);
-    setCurrentWordIdx(0);
+    setCurrentWordIdx((prev) => {
+      if (initialWordIndex > 0 && initialWordIndex < filtered.length) {
+        return initialWordIndex;
+      }
+      return Math.min(prev, Math.max(0, filtered.length - 1));
+    });
     setCurrentLetterIdx(0);
     setIsWordCompleted(false);
-  }, [words, settings.selectedCategory, settings.enabledWordLengths, settings.randomWords]);
+  }, [words, settings.selectedCategory, enabledLengthsStr, settings.randomWords]);
 
   const currentWord: Word | undefined = activeWordList[currentWordIdx] || activeWordList[0];
   const wordText = currentWord?.text || 'CAT';
@@ -80,8 +87,14 @@ export const TracingScreen: React.FC<TracingScreenProps> = ({
     };
   }, []);
 
-  // Handle letter completed
+  // Handle letter completed with debounce guard
   const handleLetterComplete = () => {
+    if (isAdvancingLetterRef.current) return;
+    isAdvancingLetterRef.current = true;
+    setTimeout(() => {
+      isAdvancingLetterRef.current = false;
+    }, 450);
+
     recordLetterTraced();
 
     if (currentLetterIdx + 1 < letters.length) {
@@ -208,32 +221,39 @@ export const TracingScreen: React.FC<TracingScreenProps> = ({
           <Home className={`w-7 h-7 sm:w-8 sm:h-8 ${themeConfig.titleAccent}`} />
         </button>
 
-        {/* Word Letter Indicators */}
-        <div className="flex items-center gap-2 sm:gap-4 bg-white/90 backdrop-blur px-4 sm:px-6 py-2 rounded-3xl shadow-soft border border-slate-200/70">
+        {/* Word Letter Indicators with clear B → A → L → L progression */}
+        <div className="flex items-center gap-1 sm:gap-2.5 bg-white/90 backdrop-blur px-3 sm:px-5 py-2 rounded-3xl shadow-soft border border-slate-200/70">
           {letters.map((char, idx) => {
             const isDone = isWordCompleted || idx < currentLetterIdx;
             const isCurrent = !isWordCompleted && idx === currentLetterIdx;
 
             return (
-              <button
-                key={`word-let-${idx}`}
-                disabled={isWordCompleted}
-                onClick={() => {
-                  if (mode === 'word') {
-                    setCurrentLetterIdx(idx);
-                    setTracerKey((prev) => prev + 1);
-                  }
-                }}
-                className={`w-11 h-12 sm:w-14 sm:h-16 rounded-2xl flex items-center justify-center font-extrabold text-2xl sm:text-3xl transition-all duration-300 ${
-                  isDone
-                    ? themeConfig.pillDone
-                    : isCurrent
-                    ? themeConfig.pillActive
-                    : themeConfig.pillInactive
-                }`}
-              >
-                {char}
-              </button>
+              <React.Fragment key={`word-let-frag-${idx}`}>
+                {idx > 0 && (
+                  <span className={`text-xs sm:text-sm font-black transition-colors ${isDone ? 'text-emerald-500' : isCurrent ? 'text-emerald-600 animate-pulse' : 'text-slate-300'}`}>
+                    →
+                  </span>
+                )}
+                <button
+                  key={`word-let-${idx}`}
+                  disabled={isWordCompleted || mode !== 'word'}
+                  onClick={() => {
+                    if (mode === 'word') {
+                      setCurrentLetterIdx(idx);
+                      setTracerKey((prev) => prev + 1);
+                    }
+                  }}
+                  className={`w-10 h-11 sm:w-13 sm:h-15 rounded-2xl flex items-center justify-center font-extrabold text-xl sm:text-3xl transition-all duration-300 ${
+                    isDone
+                      ? themeConfig.pillDone
+                      : isCurrent
+                      ? themeConfig.pillActive
+                      : themeConfig.pillInactive
+                  }`}
+                >
+                  {char}
+                </button>
+              </React.Fragment>
             );
           })}
         </div>
@@ -279,13 +299,19 @@ export const TracingScreen: React.FC<TracingScreenProps> = ({
         ) : (
           /* ACTIVE LETTER TRACING VIEW */
           <div className="w-full h-full flex flex-col items-center justify-center max-w-2xl">
-            {/* If Word Mode, show small thumbnail of word beside/above */}
-            {mode === 'word' && (
-              <div className="flex items-center gap-3 mb-2 bg-white/90 px-4 py-1.5 rounded-2xl shadow-sm border border-slate-200/70">
-                <span className="text-lg font-bold text-slate-600">Tracing:</span>
-                <span className={`text-2xl font-black ${themeConfig.titleAccent}`}>{wordText}</span>
+            {/* Word Context Banner: Shows current word & illustration thumbnail so child always knows context */}
+            <div className="flex items-center gap-3 mb-2 bg-white/95 px-4 sm:px-6 py-1.5 sm:py-2 rounded-2xl shadow-sm border border-slate-200/70 animate-fade-in">
+              <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-slate-50 flex items-center justify-center overflow-hidden border border-slate-200/60 flex-none">
+                <WordImage word={currentWord} className="w-8 h-8 sm:w-9 sm:h-9 object-contain" />
               </div>
-            )}
+              <div className="flex items-center gap-1.5">
+                <span className="text-xs sm:text-sm font-bold text-slate-500 uppercase">Word:</span>
+                <span className={`text-xl sm:text-2xl font-black ${themeConfig.titleAccent} tracking-wider`}>{wordText}</span>
+              </div>
+              <span className="text-xs font-bold text-slate-400 bg-slate-100/90 px-2 py-0.5 rounded-full ml-1">
+                Letter {currentLetterIdx + 1} of {letters.length}
+              </span>
+            </div>
 
             {/* Enormous centered Letter Tracer */}
             <div className="w-full flex-1 flex items-center justify-center max-h-[68vh]">

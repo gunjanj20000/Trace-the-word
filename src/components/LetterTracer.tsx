@@ -60,6 +60,15 @@ export const LetterTracer: React.FC<LetterTracerProps> = ({
   const [isLetterSuccess, setIsLetterSuccess] = useState<boolean>(false);
   const [outsideNotice, setOutsideNotice] = useState<boolean>(false);
 
+  // Synchronization refs to prevent double-advancing, multi-touch race conditions, or skipped letters
+  const onCompleteRef = useRef(onComplete);
+  onCompleteRef.current = onComplete;
+  const letterCompletedRef = useRef<boolean>(false);
+  const isTracingRef = useRef<boolean>(false);
+  const activePointerIdRef = useRef<number | null>(null);
+  const completedStrokesRef = useRef<Set<number>>(new Set());
+  const completeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
   // Difficulty settings
   const tolerance = difficulty === 'easy' ? 42 : difficulty === 'medium' ? 28 : 18;
   const guideStrokeWidth = difficulty === 'easy' ? 38 : difficulty === 'medium' ? 28 : 20;
@@ -75,7 +84,25 @@ export const LetterTracer: React.FC<LetterTracerProps> = ({
     setCoveredCount(0);
     setIsLetterSuccess(false);
     setOutsideNotice(false);
+
+    letterCompletedRef.current = false;
+    isTracingRef.current = false;
+    activePointerIdRef.current = null;
+    completedStrokesRef.current = new Set();
+    if (completeTimerRef.current) {
+      clearTimeout(completeTimerRef.current);
+      completeTimerRef.current = null;
+    }
   }, [letter]);
+
+  // Clean up timer on unmount
+  useEffect(() => {
+    return () => {
+      if (completeTimerRef.current) {
+        clearTimeout(completeTimerRef.current);
+      }
+    };
+  }, []);
 
   // Transform screen client coordinates to SVG 200x240 coordinates
   const getSvgCoordinates = useCallback((clientX: number, clientY: number): Point => {
@@ -109,7 +136,13 @@ export const LetterTracer: React.FC<LetterTracerProps> = ({
 
   // Handle pointer down (touch/mouse/stylus)
   const handlePointerDown = (e: React.PointerEvent<SVGSVGElement>) => {
-    if (isLetterSuccess || !currentStroke) return;
+    if (letterCompletedRef.current || isLetterSuccess || !currentStroke) return;
+
+    // Ignore secondary touches/palms if already tracing with one pointer
+    if (activePointerIdRef.current !== null && activePointerIdRef.current !== e.pointerId) {
+      return;
+    }
+    activePointerIdRef.current = e.pointerId;
 
     // Capture pointer on SVG container to track smoothly even if finger slides slightly outside
     try {
@@ -148,6 +181,7 @@ export const LetterTracer: React.FC<LetterTracerProps> = ({
     }
 
     if (validStart) {
+      isTracingRef.current = true;
       setIsTracing(true);
       setUserTrail([pt]);
       setOutsideNotice(false);
@@ -164,7 +198,8 @@ export const LetterTracer: React.FC<LetterTracerProps> = ({
 
   // Handle pointer move
   const handlePointerMove = (e: React.PointerEvent<SVGSVGElement>) => {
-    if (!isTracing || isLetterSuccess || !currentStroke) return;
+    if (activePointerIdRef.current !== null && activePointerIdRef.current !== e.pointerId) return;
+    if (!isTracingRef.current || letterCompletedRef.current || isLetterSuccess || !currentStroke) return;
 
     const pt = getSvgCoordinates(e.clientX, e.clientY);
     const strokePoints = currentStroke.points;
@@ -202,6 +237,12 @@ export const LetterTracer: React.FC<LetterTracerProps> = ({
 
   // Complete current stroke
   const handleStrokeComplete = () => {
+    // Guard against multiple simultaneous completion triggers on same stroke
+    if (letterCompletedRef.current) return;
+    if (completedStrokesRef.current.has(activeStrokeIdx)) return;
+    completedStrokesRef.current.add(activeStrokeIdx);
+
+    isTracingRef.current = false;
     setIsTracing(false);
     setUserTrail([]);
 
@@ -215,7 +256,8 @@ export const LetterTracer: React.FC<LetterTracerProps> = ({
     }
 
     if (nextCompleted.length >= totalStrokes) {
-      // Entire letter completed!
+      // Entire letter completed! Single execution guarantee
+      letterCompletedRef.current = true;
       setIsLetterSuccess(true);
       playLetterCompleteSound(soundVolume);
 
@@ -226,8 +268,11 @@ export const LetterTracer: React.FC<LetterTracerProps> = ({
         voiceURI,
       });
 
-      setTimeout(() => {
-        onComplete();
+      if (completeTimerRef.current) {
+        clearTimeout(completeTimerRef.current);
+      }
+      completeTimerRef.current = setTimeout(() => {
+        onCompleteRef.current?.();
       }, 950);
     } else {
       // Advance to next stroke
@@ -247,11 +292,20 @@ export const LetterTracer: React.FC<LetterTracerProps> = ({
       // Ignored
     }
 
-    if (!isTracing) return;
+    if (activePointerIdRef.current === e.pointerId) {
+      activePointerIdRef.current = null;
+    }
+
+    if (!isTracingRef.current || letterCompletedRef.current) {
+      isTracingRef.current = false;
+      setIsTracing(false);
+      return;
+    }
+    isTracingRef.current = false;
     setIsTracing(false);
 
     // If child got close to completion (e.g. 60%+), help them finish if on Easy mode
-    if (currentStroke && difficulty === 'easy') {
+    if (currentStroke && difficulty === 'easy' && !completedStrokesRef.current.has(activeStrokeIdx)) {
       const pct = (coveredCount / currentStroke.points.length) * 100;
       if (pct >= completionThresholdPct - 10) {
         handleStrokeComplete();
@@ -271,12 +325,24 @@ export const LetterTracer: React.FC<LetterTracerProps> = ({
     } catch {
       // Ignored
     }
+    if (activePointerIdRef.current === e.pointerId) {
+      activePointerIdRef.current = null;
+    }
+    isTracingRef.current = false;
     setIsTracing(false);
     setUserTrail([]);
   };
 
   // Manual reset of current letter
   const handleReset = () => {
+    letterCompletedRef.current = false;
+    isTracingRef.current = false;
+    activePointerIdRef.current = null;
+    completedStrokesRef.current = new Set();
+    if (completeTimerRef.current) {
+      clearTimeout(completeTimerRef.current);
+      completeTimerRef.current = null;
+    }
     setActiveStrokeIdx(0);
     setCompletedStrokes([]);
     setUserTrail([]);

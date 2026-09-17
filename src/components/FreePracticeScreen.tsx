@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Settings } from '../types';
 import { LetterTracer } from './LetterTracer';
 import { RAW_LETTERS } from '../data/letterPaths';
-import { Home, RotateCcw, Volume2, Sparkles } from 'lucide-react';
+import { Home, RotateCcw, Volume2, Sparkles, ArrowRight, ArrowLeft } from 'lucide-react';
 import { speakLetter, playLetterCompleteSound } from '../services/audio';
 import { getThemeConfig } from '../theme/themeConfig';
 
@@ -25,6 +25,27 @@ export const FreePracticeScreen: React.FC<FreePracticeProps> = ({
 
   const handleLetterDone = () => {
     setCompletedCount((p) => p + 1);
+    // Smoothly advance to next letter in alphabet after celebration
+    setTimeout(() => {
+      const currentIdx = ALPHABET.indexOf(selectedLetter);
+      const nextIdx = (currentIdx + 1) % ALPHABET.length;
+      setSelectedLetter(ALPHABET[nextIdx]);
+      setTracerKey((p) => p + 1);
+    }, 1200);
+  };
+
+  const handleNextLetter = () => {
+    const currentIdx = ALPHABET.indexOf(selectedLetter);
+    const nextIdx = (currentIdx + 1) % ALPHABET.length;
+    setSelectedLetter(ALPHABET[nextIdx]);
+    setTracerKey((p) => p + 1);
+  };
+
+  const handlePrevLetter = () => {
+    const currentIdx = ALPHABET.indexOf(selectedLetter);
+    const prevIdx = (currentIdx - 1 + ALPHABET.length) % ALPHABET.length;
+    setSelectedLetter(ALPHABET[prevIdx]);
+    setTracerKey((p) => p + 1);
   };
 
   const handleReset = () => {
@@ -117,21 +138,30 @@ export const FreePracticeScreen: React.FC<FreePracticeProps> = ({
       </main>
 
       {/* Bottom Bar */}
-      <footer className="flex-none flex items-center justify-between px-6 sm:px-12 py-4 pb-[calc(1rem+var(--safe-bottom))] z-20">
+      <footer className="flex-none flex items-center justify-between px-4 sm:px-10 py-4 pb-[calc(1rem+var(--safe-bottom))] z-20 gap-2">
         <button
           onClick={handleReset}
-          className={`h-16 px-6 sm:px-8 rounded-3xl ${themeConfig.cardBg} shadow-soft border-2 ${themeConfig.cardBorder} flex items-center gap-2 text-slate-700 font-bold text-lg active:scale-95 transition hover:opacity-90`}
+          className={`h-16 px-4 sm:px-7 rounded-3xl ${themeConfig.cardBg} shadow-soft border-2 ${themeConfig.cardBorder} flex items-center gap-2 text-slate-700 font-bold text-lg active:scale-95 transition hover:opacity-90`}
         >
-          <RotateCcw className={`w-7 h-7 ${themeConfig.titleAccent}`} />
-          <span>Clear</span>
+          <RotateCcw className={`w-6 h-6 ${themeConfig.titleAccent}`} />
+          <span className="hidden sm:inline">Clear</span>
         </button>
 
         <button
           onClick={handleHearLetter}
-          className={`h-16 px-8 sm:px-10 rounded-3xl ${themeConfig.btnStart} font-extrabold text-xl shadow-lg flex items-center gap-2 active:scale-95 transition`}
+          className={`h-16 px-5 sm:px-8 rounded-3xl ${themeConfig.cardBg} border-2 ${themeConfig.cardBorder} font-bold text-lg shadow-sm flex items-center gap-2 active:scale-95 transition text-slate-700 hover:opacity-90`}
         >
-          <Volume2 className="w-7 h-7" />
+          <Volume2 className="w-6 h-6 text-amber-500" />
           <span>Say "{selectedLetter}"</span>
+        </button>
+
+        <button
+          onClick={handleNextLetter}
+          aria-label="Next Letter"
+          className={`h-16 px-6 sm:px-9 rounded-3xl ${themeConfig.btnStart} font-black text-xl shadow-lg flex items-center gap-2 active:scale-95 transition`}
+        >
+          <span>Next ({ALPHABET[(ALPHABET.indexOf(selectedLetter) + 1) % ALPHABET.length]})</span>
+          <ArrowRight className="w-6 h-6" />
         </button>
       </footer>
     </div>
