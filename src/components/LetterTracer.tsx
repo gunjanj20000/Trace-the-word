@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useId } from 'react';
 import { TracingDifficulty, Point, AppTheme } from '../types';
 import { getLetterDefinition } from '../data/letterPaths';
 import { playStrokeCompleteSound, playLetterCompleteSound, speakLetter } from '../services/audio';
@@ -34,6 +34,13 @@ export const LetterTracer: React.FC<LetterTracerProps> = ({
 }) => {
   const themeConfig = getThemeConfig(theme);
   const svgRef = useRef<SVGSVGElement | null>(null);
+
+  // Scoped unique SVG gradient IDs to prevent DOM ID collision and support userSpaceOnUse gradients
+  const rawId = useId();
+  const tracerId = rawId.replace(/[^a-zA-Z0-9_-]/g, '_');
+  const userBrushGradId = `userBrushGrad_${tracerId}`;
+  const completedGradId = `completedStrokeGrad_${tracerId}`;
+  const startPointGradId = `startPointGrad_${tracerId}`;
 
   // Get letter definition
   const letterDef = getLetterDefinition(letter);
@@ -98,8 +105,14 @@ export const LetterTracer: React.FC<LetterTracerProps> = ({
   const handlePointerDown = (e: React.PointerEvent<SVGSVGElement>) => {
     if (isLetterSuccess || !currentStroke) return;
 
-    // Capture pointer to track even if finger slides slightly outside SVG
-    (e.target as Element).setPointerCapture?.(e.pointerId);
+    // Capture pointer on SVG container to track smoothly even if finger slides slightly outside
+    try {
+      if (svgRef.current) {
+        svgRef.current.setPointerCapture(e.pointerId);
+      }
+    } catch {
+      // Ignored if pointer capture not supported on this platform
+    }
 
     const pt = getSvgCoordinates(e.clientX, e.clientY);
     const strokePoints = currentStroke.points;
@@ -120,12 +133,22 @@ export const LetterTracer: React.FC<LetterTracerProps> = ({
       }
     }
 
+    // Allow seamlessly resuming if child paused mid-stroke
+    if (!validStart && coveredCount > 0 && coveredCount < strokePoints.length) {
+      const lastCovered = strokePoints[Math.min(coveredCount - 1, strokePoints.length - 1)];
+      if (dist(pt, lastCovered) <= tolerance * 1.5) {
+        validStart = true;
+      }
+    }
+
     if (validStart) {
       setIsTracing(true);
       setUserTrail([pt]);
       setOutsideNotice(false);
-      // Mark initial points
-      setCoveredCount(Math.min(3, strokePoints.length));
+      // Mark initial points if starting fresh
+      if (coveredCount === 0) {
+        setCoveredCount(Math.min(3, strokePoints.length));
+      }
     } else {
       // Gently remind where start point is (no buzzer, gentle guidance)
       setOutsideNotice(true);
@@ -206,6 +229,14 @@ export const LetterTracer: React.FC<LetterTracerProps> = ({
 
   // Handle pointer up
   const handlePointerUp = (e: React.PointerEvent<SVGSVGElement>) => {
+    try {
+      if (svgRef.current?.hasPointerCapture(e.pointerId)) {
+        svgRef.current.releasePointerCapture(e.pointerId);
+      }
+    } catch {
+      // Ignored
+    }
+
     if (!isTracing) return;
     setIsTracing(false);
 
@@ -222,7 +253,14 @@ export const LetterTracer: React.FC<LetterTracerProps> = ({
     setUserTrail([]);
   };
 
-  const handlePointerCancel = () => {
+  const handlePointerCancel = (e: React.PointerEvent<SVGSVGElement>) => {
+    try {
+      if (svgRef.current?.hasPointerCapture(e.pointerId)) {
+        svgRef.current.releasePointerCapture(e.pointerId);
+      }
+    } catch {
+      // Ignored
+    }
     setIsTracing(false);
     setUserTrail([]);
   };
@@ -266,20 +304,34 @@ export const LetterTracer: React.FC<LetterTracerProps> = ({
           onPointerCancel={handlePointerCancel}
         >
           <defs>
-            {/* Gradient for user's active drawn brush stroke */}
-            <linearGradient id="userBrushGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+            {/* Gradient for user's active drawn brush stroke (userSpaceOnUse prevents disappearing on straight lines) */}
+            <linearGradient
+              id={userBrushGradId}
+              gradientUnits="userSpaceOnUse"
+              x1="20"
+              y1="20"
+              x2="180"
+              y2="220"
+            >
               <stop offset="0%" stopColor={themeConfig.tracerUserBrush.start} />
               <stop offset="100%" stopColor={themeConfig.tracerUserBrush.end} />
             </linearGradient>
 
-            {/* Gradient for completed strokes */}
-            <linearGradient id="completedStrokeGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+            {/* Gradient for completed strokes: userSpaceOnUse ensures all vertical/horizontal lines render cleanly without 0-box clipping */}
+            <linearGradient
+              id={completedGradId}
+              gradientUnits="userSpaceOnUse"
+              x1="20"
+              y1="20"
+              x2="180"
+              y2="220"
+            >
               <stop offset="0%" stopColor={themeConfig.tracerCompletedStroke.start} />
               <stop offset="100%" stopColor={themeConfig.tracerCompletedStroke.end} />
             </linearGradient>
 
             {/* Pulsing start marker gradient */}
-            <radialGradient id="startPointGrad">
+            <radialGradient id={startPointGradId}>
               <stop offset="0%" stopColor={themeConfig.tracerStartPoint.start} />
               <stop offset="60%" stopColor={themeConfig.tracerStartPoint.mid} />
               <stop offset="100%" stopColor={themeConfig.tracerStartPoint.end} />
@@ -287,7 +339,7 @@ export const LetterTracer: React.FC<LetterTracerProps> = ({
           </defs>
 
           {/* 1. BACKGROUND GUIDE LAYER: Faint outline of all strokes */}
-          {letterDef.strokes.map((stroke, idx) => (
+          {letterDef.strokes.map((stroke) => (
             <path
               key={`bg-${stroke.id}`}
               d={stroke.pathD}
@@ -296,7 +348,7 @@ export const LetterTracer: React.FC<LetterTracerProps> = ({
               strokeWidth={guideStrokeWidth}
               strokeLinecap="round"
               strokeLinejoin="round"
-              className="transition-colors duration-200"
+              className="transition-colors duration-200 pointer-events-none"
             />
           ))}
 
@@ -318,24 +370,36 @@ export const LetterTracer: React.FC<LetterTracerProps> = ({
                 strokeLinecap="round"
                 strokeLinejoin="round"
                 opacity={isActive ? 0.85 : 0.3}
+                className="pointer-events-none"
               />
             );
           })}
 
-          {/* 3. COMPLETED STROKES LAYER: Solid vibrant themed color */}
+          {/* 3. COMPLETED STROKES LAYER: Solid vibrant themed color + gradient overlay (never disappears!) */}
           {letterDef.strokes.map((stroke, idx) => {
             if (!completedStrokes.includes(idx)) return null;
             return (
-              <path
-                key={`completed-${stroke.id}`}
-                d={stroke.pathD}
-                fill="none"
-                stroke="url(#completedStrokeGrad)"
-                strokeWidth={userStrokeWidth * 1.15}
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                className="transition-all duration-300"
-              />
+              <g key={`completed-stroke-group-${stroke.id}`} className="pointer-events-none">
+                {/* 100% reliable base solid stroke ensures zero disappearance on any browser / zero-width bbox */}
+                <path
+                  d={stroke.pathD}
+                  fill="none"
+                  stroke={themeConfig.tracerCompletedStroke.start}
+                  strokeWidth={userStrokeWidth * 1.15}
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+                {/* Smooth sensory gradient overlay */}
+                <path
+                  d={stroke.pathD}
+                  fill="none"
+                  stroke={`url(#${completedGradId})`}
+                  strokeWidth={userStrokeWidth * 1.15}
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  className="transition-all duration-300"
+                />
+              </g>
             );
           })}
 
@@ -348,6 +412,7 @@ export const LetterTracer: React.FC<LetterTracerProps> = ({
               strokeWidth={userStrokeWidth}
               strokeLinecap="round"
               strokeLinejoin="round"
+              className="pointer-events-none"
             />
           )}
 
@@ -356,11 +421,12 @@ export const LetterTracer: React.FC<LetterTracerProps> = ({
             <path
               d={userDrawnPath}
               fill="none"
-              stroke="url(#userBrushGrad)"
+              stroke={`url(#${userBrushGradId})`}
               strokeWidth={userStrokeWidth * 0.9}
               strokeLinecap="round"
               strokeLinejoin="round"
               opacity={0.85}
+              className="pointer-events-none"
             />
           )}
 
@@ -407,7 +473,7 @@ export const LetterTracer: React.FC<LetterTracerProps> = ({
                 strokeWidth="4"
               />
               {/* Inner glowing dot */}
-              <circle cx="0" cy="0" r="11" fill="url(#startPointGrad)" />
+              <circle cx="0" cy="0" r="11" fill={`url(#${startPointGradId})`} />
               {/* Friendly start dot star */}
               <circle cx="0" cy="0" r="4" fill="#ffffff" />
             </g>
