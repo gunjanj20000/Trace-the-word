@@ -428,30 +428,7 @@ export const LetterTracer: React.FC<LetterTracerProps> = ({
             />
           ))}
 
-          {/* 2. INNER DASHED TRACING TRACK */}
-          {letterDef.strokes.map((stroke, idx) => {
-            const isCompleted = completedStrokes.includes(idx);
-            const isActive = idx === activeStrokeIdx && !isLetterSuccess;
-
-            if (isCompleted) return null;
-
-            return (
-              <path
-                key={`track-${stroke.id}`}
-                d={stroke.pathD}
-                fill="none"
-                stroke={isActive ? themeConfig.tracerTrackActive : themeConfig.tracerTrackInactive}
-                strokeWidth={guideStrokeWidth * 0.45}
-                strokeDasharray={isActive ? '10 10' : '6 12'}
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                opacity={isActive ? 0.85 : 0.3}
-                className="pointer-events-none"
-              />
-            );
-          })}
-
-          {/* 3. COMPLETED STROKES LAYER: Solid vibrant themed color + gradient overlay (never disappears!) */}
+          {/* 2. COMPLETED STROKES LAYER: Solid vibrant themed color + gradient overlay (never disappears!) */}
           {letterDef.strokes.map((stroke, idx) => {
             if (!completedStrokes.includes(idx)) return null;
             return (

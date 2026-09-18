@@ -68,8 +68,13 @@ async function verifyLetterTransitions() {
       const strokeData = await page.evaluate(() => {
         const svg = document.querySelector('svg.touch-none');
         if (!svg) return null;
-        // The active track has strokeDasharray="10 10" and opacity="0.85"
-        const track = svg.querySelector('path[stroke-dasharray="10 10"]');
+        const bgPaths = Array.from(svg.querySelectorAll('path')).filter(p => {
+          const s = p.getAttribute('stroke');
+          return s && (s === '#e2e8f0' || s.startsWith('#'));
+        });
+        const completedGroups = svg.querySelectorAll('g[class*="pointer-events-none"] path[stroke*="completedStroke"]');
+        const numCompleted = completedGroups.length;
+        const track = bgPaths[numCompleted];
         if (!track) return null;
         const len = track.getTotalLength();
         const pts = [];
