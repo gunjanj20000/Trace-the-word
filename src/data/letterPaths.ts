@@ -73,8 +73,8 @@ export const RAW_LETTERS: Record<string, string[]> = {
     'M 165 205 L 165 35',   // Right stem up
   ],
   O: [
-    'M 100 35 C 45 35, 28 75, 28 120 C 28 165, 45 205, 100 205',   // Left half (top to bottom)
-    'M 100 205 C 155 205, 172 165, 172 120 C 172 75, 155 35, 100 35', // Right half (bottom to top)
+    'M 100 35 C 155 35, 172 75, 172 120 C 172 165, 155 205, 100 205',   // Right half (top to bottom) - clockwise
+    'M 100 205 C 45 205, 28 165, 28 120 C 28 75, 45 35, 100 35',       // Left half (bottom to top) - clockwise
   ],
   P: [
     'M 45 35 L 45 205',                                              // Vertical stem
