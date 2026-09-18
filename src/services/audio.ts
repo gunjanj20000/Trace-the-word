@@ -403,8 +403,6 @@ export function getLetterForWordPhrase(wordText: string): string {
  */
 export function getLetterNameText(letter: string): string {
   const upper = letter.toUpperCase().trim();
-  // Ensure 'A' is articulated as the letter name /eɪ/ ("Ay"), never the unstressed article /ə/
-  if (upper === 'A') return 'Ay!';
   return `${upper}!`;
 }
 
@@ -429,7 +427,7 @@ export async function speakLetter(
       expressive: true,
     });
   } else {
-    // Speak letter name with bright cheerful inflection e.g. "B!", "A!" (Ay!)
+    // Speak letter name with bright cheerful inflection e.g. "A!", "B!", "C!"
     const letterName = getLetterNameText(upper);
     await speakText(letterName, {
       rate: options.rate ?? 0.88,

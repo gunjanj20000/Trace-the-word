@@ -128,12 +128,14 @@ async function testLetterNamesAndWordSpeech() {
     await startBtn.click();
     await new Promise((r) => setTimeout(r, 600));
 
-    // Check letter displayed and hear button
-    const speakLetterBtn = await page.$('button[aria-label="Hear letter sound"]');
+    // Check letter displayed and hear button for letter 'A'
+    const speakLetterBtn = await page.$('button[aria-label="Hear Sound"]');
     if (speakLetterBtn) {
-      console.log('Clicking "Hear letter sound" button...');
+      console.log('Clicking "Hear Sound" button on letter A...');
       await speakLetterBtn.click();
-      await new Promise((r) => setTimeout(r, 300));
+      await new Promise((r) => setTimeout(r, 400));
+    } else {
+      console.warn('Hear Sound button not found!');
     }
 
     // Complete the word by skipping remaining letters
@@ -172,23 +174,34 @@ async function testLetterNamesAndWordSpeech() {
     console.log('\nAll speech texts:', texts);
 
     // Assert that we have:
-    // 1) A letter name spoken (e.g. "B!" or "Ay!")
-    // 2) An "X for Word!" spoken on word completion (e.g. "B for Ball!" or "A for Apple!")
-    const hasLetterName = texts.some((t) => /^[A-Z]!$/.test(t) || t === 'Ay!');
+    // 1) Letter A name spoken as "A!" (not "Ay!")
+    // 2) Letter B name spoken as "B!"
+    // 3) An "X for Word!" spoken on word completion (e.g. "B for Ball!" or "A for Apple!")
+    const hasLetterNameA = texts.includes('A!');
+    const hasLetterNameB = texts.includes('B!');
     const hasWordMnemonic = texts.some((t) => /^[A-Z] for [A-Za-z]+!$/.test(t));
+    const hasAy = texts.some((t) => t.includes('Ay') || t === 'Ay!');
 
     console.log('\nAssertions:');
-    console.log('- Spoke letter name (e.g. "B!" / "Ay!"):', hasLetterName);
-    console.log('- Spoke mnemonic phrase (e.g. "B for Ball!" / "A for Apple!"):', hasWordMnemonic);
+    console.log('- Spoke letter A as "A!":', hasLetterNameA);
+    console.log('- Spoke letter B as "B!":', hasLetterNameB);
+    console.log('- Spoke mnemonic phrase (e.g. "A for Apple!"):', hasWordMnemonic);
+    console.log('- Did NOT speak "Ay!":', !hasAy);
 
-    if (!hasLetterName) {
-      throw new Error('Letter name was not spoken properly!');
+    if (!hasLetterNameA) {
+      throw new Error('Letter A was not spoken as "A!"');
+    }
+    if (hasAy) {
+      throw new Error('Forbidden text "Ay!" was spoken instead of "A!"');
+    }
+    if (!hasLetterNameB) {
+      throw new Error('Letter B was not spoken properly!');
     }
     if (!hasWordMnemonic) {
       throw new Error('Word mnemonic ("X for Word!") was not spoken on completion!');
     }
 
-    console.log('\n🎉 ALL TTS & LETTER NAME CHECKS PASSED PERFECTLY!');
+    console.log('\n🎉 ALL TTS & LETTER NAME CHECKS PASSED PERFECTLY (A is spoken as A, not AY)!');
   } catch (err) {
     console.error('❌ Test failed:', err);
     process.exitCode = 1;
