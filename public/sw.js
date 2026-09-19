@@ -1,5 +1,5 @@
-// Trace A Word - Service Worker v9
-const CACHE_NAME = 'trace-a-word-v9';
+// Trace A Word - Service Worker v10
+const CACHE_NAME = 'trace-a-word-v10';
 const PRECACHE_ASSETS = [
   '/',
   '/index.html',
