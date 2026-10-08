@@ -1,1 +1,200 @@
 
+name: Build Android APK (PWA to APK)
+
+on:
+  push:
+    branches: [main, master]
+    paths:
+      - 'src/**'
+      - 'public/**'
+      - 'index.html'
+      - 'package.json'
+      - 'twa-manifest.json'
+      - '.github/workflows/build-apk.yml'
+      - 'scripts/**'
+  workflow_dispatch:
+    inputs:
+      package_id:
+        description: 'Android Package ID (e.g. com.tracetheword.app)'
+        required: false
+        default: 'com.tracetheword.app'
+      host_domain:
+        description: 'Hosted PWA Domain (e.g. gunjanj20000.github.io)'
+        required: false
+        default: 'gunjanj20000.github.io'
+      start_url:
+        description: 'PWA Start URL Path'
+        required: false
+        default: '/Trace-the-word/'
+      app_name:
+        description: 'App Full Name'
+        required: false
+        default: 'Trace A Word - Word Tracing & Early Learning'
+      launcher_name:
+        description: 'Launcher / Home Screen Name'
+        required: false
+        default: 'Trace Words'
+      version_name:
+        description: 'Version Name'
+        required: false
+        default: '1.0.0'
+      version_code:
+        description: 'Version Code (Integer)'
+        required: false
+        default: '1'
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: Build APK and AAB
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: 📥 Checkout repository
+        uses: actions/checkout@v4
+
+      - name: 🟢 Set up Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: ☕ Set up JDK 17 (Required by Google TWA / Gradle)
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+          cache: 'gradle'
+
+      - name: 📱 Configure Android SDK
+        run: |
+          echo "ANDROID_HOME=/usr/local/lib/android/sdk" >> $GITHUB_ENV
+          echo "ANDROID_SDK_ROOT=/usr/local/lib/android/sdk" >> $GITHUB_ENV
+          yes | /usr/local/lib/android/sdk/cmdline-tools/latest/bin/sdkmanager --licenses || true
+
+      - name: 📦 Install dependencies
+        run: npm ci
+
+      - name: 🔍 Verify PWA Assets & Google Compliance
+        run: |
+          echo "Checking PWA required assets..."
+          test -f public/manifest.json || (echo "Missing manifest.json" && exit 1)
+          test -f public/icon-512.png || (echo "Missing 512x512 icon" && exit 1)
+          test -f public/icon-maskable-512.png || (echo "Missing 512x512 maskable icon" && exit 1)
+          test -f public/icon-192.png || (echo "Missing 192x192 icon" && exit 1)
+          test -f public/icon-maskable-192.png || (echo "Missing 192x192 maskable icon" && exit 1)
+          echo "✓ All Google PWA asset criteria verified successfully."
+
+      - name: 🏗️ Build Web Application
+        run: npm run build
+
+      - name: 🔑 Configure Android Signing Keystore
+        env:
+          KEYSTORE_BASE64: ${{ secrets.SIGNING_KEY_STORE_BASE64 }}
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD || 'android' }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD || 'android' }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS || 'android' }}
+        run: |
+          if [ -n "$KEYSTORE_BASE64" ]; then
+            echo "Using custom keystore from repository secrets..."
+            echo "$KEYSTORE_BASE64" | base64 --decode > android.keystore
+          else
+            echo "Generating release keystore..."
+            keytool -genkeypair -v \
+              -keystore android.keystore \
+              -alias "$KEY_ALIAS" \
+              -keyalg RSA \
+              -keysize 2048 \
+              -validity 10000 \
+              -storepass "$KEYSTORE_PASSWORD" \
+              -keypass "$KEY_PASSWORD" \
+              -dname "CN=TraceTheWord, OU=PWA, O=TraceTheWord, L=Global, ST=State, C=US"
+          fi
+          echo "✓ Keystore prepared."
+
+      - name: 🛠️ Generate Android TWA Project
+        env:
+          PACKAGE_ID: ${{ github.event.inputs.package_id || 'com.tracetheword.app' }}
+          HOST_DOMAIN: ${{ github.event.inputs.host_domain || 'gunjanj20000.github.io' }}
+          START_URL: ${{ github.event.inputs.start_url || '/Trace-the-word/' }}
+          APP_NAME: ${{ github.event.inputs.app_name || 'Trace A Word - Word Tracing & Early Learning' }}
+          LAUNCHER_NAME: ${{ github.event.inputs.launcher_name || 'Trace Words' }}
+          VERSION_NAME: ${{ github.event.inputs.version_name || '1.0.0' }}
+          VERSION_CODE: ${{ github.event.inputs.version_code || '1' }}
+          KEYSTORE_PATH: android.keystore
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD || 'android' }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD || 'android' }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS || 'android' }}
+        run: |
+          node scripts/build-twa.cjs --output-dir android --generate-only
+
+      - name: 🚀 Build APK & AAB with Gradle
+        working-directory: android
+        run: |
+          echo "sdk.dir=$ANDROID_HOME" > local.properties
+          ./gradlew assembleRelease bundleRelease --no-daemon
+
+      - name: 📦 Prepare Release Artifacts
+        run: |
+          mkdir -p dist-apk
+          
+          # Find and copy APK
+          APK_PATH=$(find android/app/build/outputs/apk/release -name "*.apk" | head -n 1)
+          if [ -n "$APK_PATH" ]; then
+            cp "$APK_PATH" dist-apk/Trace-A-Word-release.apk
+            echo "✓ Found release APK: $APK_PATH"
+          else
+            echo "❌ Release APK not found!"
+            exit 1
+          fi
+
+          # Find and copy AAB (for Google Play Store upload)
+          AAB_PATH=$(find android/app/build/outputs/bundle/release -name "*.aab" | head -n 1)
+          if [ -n "$AAB_PATH" ]; then
+            cp "$AAB_PATH" dist-apk/Trace-A-Word-release.aab
+            echo "✓ Found release AAB: $AAB_PATH"
+          fi
+
+          # Copy Digital Asset Links & SHA-256
+          cp sha256-fingerprint.txt dist-apk/sha256-fingerprint.txt
+          cp public/.well-known/assetlinks.json dist-apk/assetlinks.json
+
+      - name: 📋 Generate GitHub Step Summary
+        run: |
+          FINGERPRINT=$(cat sha256-fingerprint.txt 2>/dev/null || echo "Unknown")
+          APK_SIZE=$(ls -lh dist-apk/Trace-A-Word-release.apk | awk '{print $5}')
+          AAB_SIZE=$(ls -lh dist-apk/Trace-A-Word-release.aab 2>/dev/null | awk '{print $5}' || echo "N/A")
+
+          cat << 'EOF' >> $GITHUB_STEP_SUMMARY
+          ## 🎉 Android APK & AAB Build Successful!
+
+          Your Progressive Web App has been converted into a Trusted Web Activity (TWA) Android app adhering to Google's standard guidelines.
+
+          ### 📦 Built Binaries
+          | File | Size | Description |
+          |---|---|---|
+          | `Trace-A-Word-release.apk` | **$APK_SIZE** | Standalone Android APK ready for install on devices |
+          | `Trace-A-Word-release.aab` | **$AAB_SIZE** | Android App Bundle ready to upload to Google Play Console |
+
+          ### 🔐 Digital Asset Links (Full-Screen Native Mode)
+          To remove the browser address bar and run the app in **100% full-screen native mode**, ensure your hosted site serves the file at:
+          `https://<your-domain>/.well-known/assetlinks.json`
+
+          Your SHA-256 certificate fingerprint is:
+          ```
+          $FINGERPRINT
+          ```
+          EOF
+          sed -i "s/\$APK_SIZE/$APK_SIZE/g" $GITHUB_STEP_SUMMARY
+          sed -i "s/\$AAB_SIZE/$AAB_SIZE/g" $GITHUB_STEP_SUMMARY
+          sed -i "s/\$FINGERPRINT/$FINGERPRINT/g" $GITHUB_STEP_SUMMARY
+
+      - name: 📤 Upload Build Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: Trace-A-Word-Android-Build
+          path: dist-apk/*
+          retention-days: 30
+          if-no-files-found: error
