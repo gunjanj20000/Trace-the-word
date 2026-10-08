@@ -1,6 +1,15 @@
+import React from 'react';
+import { renderToStaticMarkup } from 'react-dom/server';
 import { openDB, DBSchema, IDBPDatabase } from 'idb';
 import { Word, Category, Settings, WordProgress, DailyProgress } from '../types';
 import { DEFAULT_CATEGORIES, DEFAULT_WORDS, DEFAULT_SETTINGS } from '../data/defaultWords';
+import { ILLUSTRATIONS } from '../data/illustrations';
+import {
+  parseAnyWordPack,
+  createUniversalWordPack,
+  type UniversalWordItem,
+  type UniversalMediaItem,
+} from './universalWordPack';
 
 interface TraceWordDB extends DBSchema {
   words: {
@@ -311,15 +320,11 @@ export async function deleteMediaItem(id: string): Promise<void> {
 }
 
 // BACKUP & RESTORE
-export interface BackupData {
-  version: number;
-  exportedAt: string;
-  words: Word[];
-  categories: Category[];
-  settings: Settings;
-  progress: WordProgress[];
-  dailyProgress: DailyProgress[];
-  media?: Array<{ id: string; type: 'image' | 'audio'; data: string; mimeType: string }>;
+export interface ImportBackupResult {
+  success: boolean;
+  addedCount: number;
+  skippedCount: number;
+  categoriesAddedCount: number;
 }
 
 export async function exportBackup(includeMedia: boolean = true): Promise<string> {
@@ -329,82 +334,218 @@ export async function exportBackup(includeMedia: boolean = true): Promise<string
   const settings = await getSettings();
   const progress = await db.getAll('progress');
   const dailyProgress = await db.getAll('dailyProgress');
-  const media = includeMedia ? await db.getAll('media') : [];
+  const existingMedia = includeMedia ? await db.getAll('media') : [];
 
-  const backup: BackupData = {
-    version: 1,
-    exportedAt: new Date().toISOString(),
-    words,
-    categories,
-    settings,
-    progress,
-    dailyProgress,
-    media,
-  };
+  const mediaMap = new Map<string, { data: string; mimeType: string }>();
+  for (const m of existingMedia) {
+    mediaMap.set(m.id, { data: m.data, mimeType: m.mimeType });
+  }
 
-  return JSON.stringify(backup, null, 2);
+  const allMedia: UniversalMediaItem[] = existingMedia.map(m => ({
+    id: m.id,
+    type: m.type,
+    data: m.data,
+    mimeType: m.mimeType,
+  }));
+
+  const categoryNameMap = new Map<string, string>();
+  for (const c of categories) {
+    categoryNameMap.set(c.id, c.name);
+  }
+
+  const universalWords: UniversalWordItem[] = words.map((w) => {
+    let imgDataUrl: string | undefined = undefined;
+    if (w.imageId && mediaMap.has(w.imageId)) {
+      imgDataUrl = mediaMap.get(w.imageId)?.data;
+    } else if (w.builtInImage && ILLUSTRATIONS[w.builtInImage.toLowerCase()]) {
+      try {
+        const Comp = ILLUSTRATIONS[w.builtInImage.toLowerCase()];
+        const svgStr = renderToStaticMarkup(React.createElement(Comp, {}));
+        imgDataUrl = `data:image/svg+xml;utf8,${encodeURIComponent(svgStr)}`;
+        const builtinMediaId = `builtin-${w.builtInImage.toLowerCase()}`;
+        if (!mediaMap.has(builtinMediaId)) {
+          allMedia.push({
+            id: builtinMediaId,
+            type: 'image',
+            data: imgDataUrl,
+            mimeType: 'image/svg+xml',
+          });
+          mediaMap.set(builtinMediaId, { data: imgDataUrl, mimeType: 'image/svg+xml' });
+        }
+      } catch (err) {
+        console.warn('Could not generate SVG illustration for:', w.builtInImage, err);
+      }
+    }
+
+    let audDataUrl: string | undefined = undefined;
+    if (w.audioId && mediaMap.has(w.audioId)) {
+      audDataUrl = mediaMap.get(w.audioId)?.data;
+    }
+
+    const cleanText = w.text.trim();
+    const catName = categoryNameMap.get(w.categoryId) || w.categoryId || 'General';
+
+    return {
+      id: w.id,
+      word: cleanText.toLowerCase(),
+      text: cleanText.toUpperCase(),
+      englishWord: cleanText.charAt(0).toUpperCase() + cleanText.slice(1).toLowerCase(),
+      hindiWord: '',
+      category: catName,
+      categoryId: w.categoryId,
+      imageDataUrl: imgDataUrl,
+      imageBase64: imgDataUrl,
+      audioDataUrl: audDataUrl,
+      englishAudioBase64: audDataUrl,
+      builtInImage: w.builtInImage,
+      imageId: w.imageId,
+      audioId: w.audioId,
+      length: w.length || cleanText.length,
+      enabled: w.enabled,
+      favorite: w.favorite,
+      createdAt: w.createdAt || Date.now(),
+    };
+  });
+
+  return createUniversalWordPack({
+    appName: 'TraceTheWord',
+    categories: categories.map(c => ({
+      id: c.id,
+      name: c.name,
+      icon: c.icon,
+      enabled: c.enabled,
+    })),
+    words: universalWords,
+    media: allMedia,
+    settings: {
+      ...settings,
+      progress,
+      dailyProgress,
+    },
+  });
 }
 
-export async function importBackup(jsonString: string): Promise<boolean> {
+export async function importBackup(jsonString: string): Promise<ImportBackupResult> {
   try {
-    const data: BackupData = JSON.parse(jsonString);
-    if (!data.words || !data.categories || !data.settings) {
-      throw new Error('Invalid backup file structure.');
-    }
-
+    const parsed = parseAnyWordPack(jsonString);
     const db = await getDB();
 
-    // Clear and restore words
-    const txW = db.transaction('words', 'readwrite');
-    await txW.store.clear();
-    for (const w of data.words) {
-      await txW.store.put(w);
-    }
-    await txW.done;
+    const existingWords = await db.getAll('words');
+    const existingCategories = await db.getAll('categories');
 
-    // Clear and restore categories
-    const txC = db.transaction('categories', 'readwrite');
-    await txC.store.clear();
-    for (const c of data.categories) {
-      await txC.store.put(c);
-    }
-    await txC.done;
+    // Build lookup of existing words (case-insensitive deduplication)
+    const existingWordSet = new Set(existingWords.map(w => w.text.trim().toLowerCase()));
 
-    // Restore settings
-    await saveSettings(data.settings);
+    // Category mapping: match case-insensitively, or add new category
+    const categoryIdMap = new Map<string, string>();
+    let categoriesAddedCount = 0;
 
-    // Restore progress
-    if (data.progress) {
-      const txP = db.transaction('progress', 'readwrite');
-      await txP.store.clear();
-      for (const p of data.progress) {
-        await txP.store.put(p);
+    for (const impCat of parsed.categories) {
+      const catKey = impCat.name.trim().toLowerCase();
+      const match = existingCategories.find(c => c.name.trim().toLowerCase() === catKey);
+      if (match) {
+        categoryIdMap.set(catKey, match.id);
+        if (impCat.id !== undefined) {
+          categoryIdMap.set(String(impCat.id).toLowerCase(), match.id);
+        }
+      } else {
+        const newCatId = impCat.id ? String(impCat.id).toLowerCase() : `cat-${catKey.replace(/[^a-z0-9]/g, '-')}`;
+        const newCat: Category = {
+          id: newCatId,
+          name: impCat.name,
+          icon: impCat.icon || 'Star',
+          enabled: true,
+        };
+        await db.put('categories', newCat);
+        existingCategories.push(newCat);
+        categoryIdMap.set(catKey, newCatId);
+        if (impCat.id !== undefined) {
+          categoryIdMap.set(String(impCat.id).toLowerCase(), newCatId);
+        }
+        categoriesAddedCount++;
       }
-      await txP.done;
     }
 
-    if (data.dailyProgress) {
-      const txD = db.transaction('dailyProgress', 'readwrite');
-      await txD.store.clear();
-      for (const d of data.dailyProgress) {
-        await txD.store.put(d);
+    const defaultCatId = existingCategories[0]?.id || 'things';
+
+    let addedCount = 0;
+    let skippedCount = 0;
+
+    for (const item of parsed.words) {
+      const normKey = item.word.toLowerCase();
+      if (existingWordSet.has(normKey)) {
+        skippedCount++;
+        continue; // Non-destructive: DO NOT replace existing word or its image!
       }
-      await txD.done;
-    }
+      existingWordSet.add(normKey);
 
-    // Restore media if included
-    if (data.media && data.media.length > 0) {
-      const txM = db.transaction('media', 'readwrite');
-      for (const m of data.media) {
-        await txM.store.put(m);
+      const wordId = `w-${normKey}-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`;
+      let imageId: string | undefined = undefined;
+      let audioId: string | undefined = undefined;
+
+      // Save custom image to media store if available
+      if (item.imageDataUrl) {
+        imageId = `img-${wordId}`;
+        const mime = item.imageDataUrl.match(/data:([^;]+);/)?.[1] || 'image/png';
+        await db.put('media', {
+          id: imageId,
+          type: 'image',
+          data: item.imageDataUrl,
+          mimeType: mime,
+        });
       }
-      await txM.done;
+
+      // Save custom audio to media store if available
+      if (item.audioDataUrl) {
+        audioId = `aud-${wordId}`;
+        const mime = item.audioDataUrl.match(/data:([^;]+);/)?.[1] || 'audio/mp3';
+        await db.put('media', {
+          id: audioId,
+          type: 'audio',
+          data: item.audioDataUrl,
+          mimeType: mime,
+        });
+      }
+
+      // Check if builtInImage illustration is available
+      const builtInKey = item.builtInImage || (ILLUSTRATIONS[normKey] ? normKey : undefined);
+
+      const catKey = item.category.trim().toLowerCase();
+      const targetCatId = categoryIdMap.get(catKey)
+        || (item.categoryId !== undefined ? categoryIdMap.get(String(item.categoryId).toLowerCase()) : undefined)
+        || defaultCatId;
+
+      const newWord: Word = {
+        id: wordId,
+        text: item.word.toUpperCase(),
+        length: item.word.length,
+        categoryId: targetCatId,
+        builtInImage: builtInKey,
+        imageId,
+        audioId,
+        enabled: true,
+        favorite: false,
+        createdAt: Date.now(),
+      };
+
+      await db.put('words', newWord);
+      addedCount++;
     }
 
-    return true;
+    return {
+      success: true,
+      addedCount,
+      skippedCount,
+      categoriesAddedCount,
+    };
   } catch (err) {
     console.error('Failed to import backup:', err);
-    return false;
+    return {
+      success: false,
+      addedCount: 0,
+      skippedCount: 0,
+      categoriesAddedCount: 0,
+    };
   }
 }
 

@@ -260,16 +260,18 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
     reader.onload = async () => {
       try {
         const jsonStr = reader.result as string;
-        const ok = await importBackup(jsonStr);
-        if (ok) {
+        const res = await importBackup(jsonStr);
+        if (res && res.success) {
           onReloadData();
-          showNotice('Backup restored successfully!');
+          showNotice(`Import complete! Added ${res.addedCount} new words (${res.skippedCount} existing skipped).`);
         } else {
           alert('Invalid backup file format.');
         }
       } catch (err) {
         console.error(err);
         alert('Failed to restore backup.');
+      } finally {
+        if (e.target) e.target.value = '';
       }
     };
     reader.readAsText(file);
