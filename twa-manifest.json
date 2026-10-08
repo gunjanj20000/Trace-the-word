@@ -1,0 +1,55 @@
+{
+  "packageId": "com.tracetheword.app",
+  "host": "gunjanj20000.github.io",
+  "name": "Trace A Word - Word Tracing & Early Learning",
+  "launcherName": "Trace Words",
+  "display": "standalone",
+  "themeColor": "#059669",
+  "themeColorDark": "#047857",
+  "navigationColor": "#064e3b",
+  "navigationColorDark": "#022c22",
+  "navigationDividerColor": "#064e3b",
+  "navigationDividerColorDark": "#022c22",
+  "backgroundColor": "#064e3b",
+  "enableNotifications": true,
+  "startUrl": "/Trace-the-word/",
+  "iconUrl": "https://raw.githubusercontent.com/gunjanj20000/Trace-the-word/main/public/icon-512.png",
+  "maskableIconUrl": "https://raw.githubusercontent.com/gunjanj20000/Trace-the-word/main/public/icon-maskable-512.png",
+  "splashScreenFadeOutDuration": 300,
+  "signingKey": {
+    "path": "./android.keystore",
+    "alias": "android"
+  },
+  "appVersionName": "1.0.0",
+  "appVersionCode": 1,
+  "shortcuts": [
+    {
+      "name": "Start Tracing",
+      "shortName": "Trace",
+      "url": "https://gunjanj20000.github.io/Trace-the-word/?screen=tracing",
+      "chosenIconUrl": "https://raw.githubusercontent.com/gunjanj20000/Trace-the-word/main/public/icon-192.png"
+    },
+    {
+      "name": "Free Practice",
+      "shortName": "Practice",
+      "url": "https://gunjanj20000.github.io/Trace-the-word/?screen=free-practice",
+      "chosenIconUrl": "https://raw.githubusercontent.com/gunjanj20000/Trace-the-word/main/public/icon-192.png"
+    }
+  ],
+  "generatorApp": "bubblewrap-cli",
+  "webManifestUrl": "https://raw.githubusercontent.com/gunjanj20000/Trace-the-word/main/public/manifest.json",
+  "fallbackType": "customtabs",
+  "features": {
+    "playBilling": {
+      "enabled": false
+    }
+  },
+  "alphaDependencies": {
+    "enabled": false
+  },
+  "enableSiteSettingsShortcut": true,
+  "isChromeOSOnly": false,
+  "isMetaQuest": false,
+  "minSdkVersion": 21,
+  "orientation": "any"
+}

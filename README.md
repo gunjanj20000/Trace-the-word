@@ -95,3 +95,29 @@ npm run preview
 ```bash
 node test-e2e.cjs
 ```
+
+---
+
+## 📱 Android APK & AAB Build (Google TWA)
+
+This project is configured to automatically package and build an Android application (APK & AAB) using Google's **Trusted Web Activity (TWA)** standard and Google Chrome Labs' **Bubblewrap** engine.
+
+### Building via GitHub Actions
+
+1. **Automatic Build**:
+   - Pushing code to `main` triggers the [`.github/workflows/build-apk.yml`](.github/workflows/build-apk.yml) workflow.
+2. **Manual Dispatch**:
+   - Go to your GitHub repository -> **Actions** tab -> **Build Android APK (PWA to APK)**.
+   - Click **Run workflow** (optionally configure your domain, package ID, version, or app title).
+3. **Download Binaries**:
+   - Once completed, download the `Trace-A-Word-Android-Build` artifact containing:
+     - `Trace-A-Word-release.apk` (Ready to install on Android devices)
+     - `Trace-A-Word-release.aab` (Ready for Google Play Store upload)
+     - `sha256-fingerprint.txt` (Your release certificate fingerprint)
+     - `assetlinks.json` (Digital Asset Links)
+
+### Full-Screen Native Mode (Digital Asset Links)
+
+Google requires domain verification so the app launches in true **100% full-screen native mode** (without a browser address bar):
+1. Serve the generated [`public/.well-known/assetlinks.json`](public/.well-known/assetlinks.json) at `https://<your-domain>/.well-known/assetlinks.json`.
+2. Ensure the SHA-256 fingerprint in that file matches the certificate fingerprint printed in the GitHub Action build summary.

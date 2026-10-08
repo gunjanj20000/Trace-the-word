@@ -153,7 +153,7 @@ async function main() {
 
   // Helper to render SVG to PNG file
   async function renderPng(svg, width, height, outputPath) {
-    await page.setViewport({ width, height, deviceScaleFactor: 2 });
+    await page.setViewport({ width, height, deviceScaleFactor: 1 });
     const html = `<!DOCTYPE html><html><body style="margin:0;padding:0;background:transparent;overflow:hidden;">
       <div style="width:${width}px;height:${height}px;display:flex;align-items:center;justify-content:center;">
         ${svg.replace('width="512"', `width="${width}"`).replace('height="512"', `height="${height}"`)}
@@ -165,6 +165,7 @@ async function main() {
   }
 
   await renderPng(SVG_CONTENT, 192, 192, path.join(publicDir, 'icon-192.png'));
+  await renderPng(SVG_MASKABLE, 192, 192, path.join(publicDir, 'icon-maskable-192.png'));
   await renderPng(SVG_CONTENT, 512, 512, path.join(publicDir, 'icon-512.png'));
   await renderPng(SVG_MASKABLE, 512, 512, path.join(publicDir, 'icon-maskable-512.png'));
   await renderPng(SVG_CONTENT, 180, 180, path.join(publicDir, 'apple-touch-icon.png'));

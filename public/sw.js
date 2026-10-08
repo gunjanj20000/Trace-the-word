@@ -1,15 +1,20 @@
-// Trace A Word - Service Worker v10
-const CACHE_NAME = 'trace-a-word-v10';
+// Trace A Word - Service Worker v11
+const CACHE_NAME = 'trace-a-word-v11';
 const PRECACHE_ASSETS = [
   '/',
   '/index.html',
   '/manifest.json',
   '/icon.svg',
   '/icon-192.png',
+  '/icon-maskable-192.png',
   '/icon-512.png',
+  '/icon-maskable-512.png',
   '/apple-touch-icon.png',
   '/favicon.svg',
-  '/favicon.ico'
+  '/favicon.ico',
+  '/screenshots/mobile-screen.png',
+  '/screenshots/tracing-screen.png',
+  '/screenshots/desktop-screen.png'
 ];
 
 self.addEventListener('install', (event) => {

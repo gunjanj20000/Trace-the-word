@@ -25,3 +25,11 @@ dist-ssr
 
 # Test screenshots / temporary artifacts
 test-results/
+
+# Android / TWA build outputs and keystores
+*.keystore
+*.jks
+android/
+sha256-fingerprint.txt
+.bubblewrap/
+.gradle/
