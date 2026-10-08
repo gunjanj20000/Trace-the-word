@@ -267,11 +267,16 @@ async function main() {
     }
 
   } finally {
+    if (typeof server.closeAllConnections === 'function') {
+      server.closeAllConnections();
+    }
     server.close();
   }
 }
 
-main().catch(err => {
+main().then(() => {
+  process.exit(0);
+}).catch(err => {
   console.error('❌ Build failed:', err);
   process.exit(1);
 });
