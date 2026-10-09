@@ -1,20 +1,20 @@
-// Trace A Word - Service Worker v11
-const CACHE_NAME = 'trace-a-word-v11';
+// Trace A Word - Service Worker v12
+const CACHE_NAME = 'trace-a-word-v12';
 const PRECACHE_ASSETS = [
-  '/',
-  '/index.html',
-  '/manifest.json',
-  '/icon.svg',
-  '/icon-192.png',
-  '/icon-maskable-192.png',
-  '/icon-512.png',
-  '/icon-maskable-512.png',
-  '/apple-touch-icon.png',
-  '/favicon.svg',
-  '/favicon.ico',
-  '/screenshots/mobile-screen.png',
-  '/screenshots/tracing-screen.png',
-  '/screenshots/desktop-screen.png'
+  './',
+  './index.html',
+  './manifest.json',
+  './icon.svg',
+  './icon-192.png',
+  './icon-maskable-192.png',
+  './icon-512.png',
+  './icon-maskable-512.png',
+  './apple-touch-icon.png',
+  './favicon.svg',
+  './favicon.ico',
+  './screenshots/mobile-screen.png',
+  './screenshots/tracing-screen.png',
+  './screenshots/desktop-screen.png'
 ];
 
 self.addEventListener('install', (event) => {
@@ -63,12 +63,12 @@ self.addEventListener('fetch', (event) => {
         .then((networkResponse) => {
           if (networkResponse && networkResponse.status === 200) {
             const copy = networkResponse.clone();
-            caches.open(CACHE_NAME).then((cache) => cache.put('/index.html', copy));
+            caches.open(CACHE_NAME).then((cache) => cache.put('./index.html', copy));
           }
           return networkResponse;
         })
         .catch(() => {
-          return caches.match('/index.html') || caches.match('/');
+          return caches.match('./index.html') || caches.match('./') || caches.match('/index.html') || caches.match('/');
         })
     );
     return;
