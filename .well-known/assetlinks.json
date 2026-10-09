@@ -1,0 +1,14 @@
+[
+  {
+    "relation": [
+      "delegate_permission/common.handle_all_urls"
+    ],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "com.tracetheword.app",
+      "sha256_cert_fingerprints": [
+        "C6:9F:EF:36:FE:14:5A:13:6F:06:97:01:C7:DD:53:6D:2D:DA:AB:1F:8D:BD:5A:70:79:F2:1D:93:22:A8:80:37"
+      ]
+    }
+  }
+]
