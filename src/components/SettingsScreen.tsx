@@ -262,8 +262,8 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
         const jsonStr = reader.result as string;
         const res = await importBackup(jsonStr);
         if (res && res.success) {
-          onReloadData();
-          showNotice(`Import complete! Added ${res.addedCount} new words (${res.skippedCount} existing skipped).`);
+          const updateMsg = res.updatedCount ? `, updated ${res.updatedCount} with audio/images` : '';
+          showNotice(`Import complete! Added ${res.addedCount} new words${updateMsg} (${res.skippedCount} existing skipped).`);
         } else {
           alert('Invalid backup file format.');
         }

@@ -323,6 +323,7 @@ export async function deleteMediaItem(id: string): Promise<void> {
 export interface ImportBackupResult {
   success: boolean;
   addedCount: number;
+  updatedCount: number;
   skippedCount: number;
   categoriesAddedCount: number;
 }
@@ -339,6 +340,7 @@ export async function exportBackup(includeMedia: boolean = true): Promise<string
   const mediaMap = new Map<string, { data: string; mimeType: string }>();
   for (const m of existingMedia) {
     mediaMap.set(m.id, { data: m.data, mimeType: m.mimeType });
+    mediaMap.set(m.id.toLowerCase(), { data: m.data, mimeType: m.mimeType });
   }
 
   const allMedia: UniversalMediaItem[] = existingMedia.map(m => ({
@@ -377,17 +379,26 @@ export async function exportBackup(includeMedia: boolean = true): Promise<string
       }
     }
 
+    const cleanText = w.text.trim();
+    const lowerText = cleanText.toLowerCase();
+
     let audDataUrl: string | undefined = undefined;
     if (w.audioId && mediaMap.has(w.audioId)) {
       audDataUrl = mediaMap.get(w.audioId)?.data;
+    } else if (w.audioId && mediaMap.has(w.audioId.toLowerCase())) {
+      audDataUrl = mediaMap.get(w.audioId.toLowerCase())?.data;
+    } else if (w.id && mediaMap.has(`aud-${w.id}`)) {
+      audDataUrl = mediaMap.get(`aud-${w.id}`)?.data;
+    } else if (mediaMap.has(`aud-${lowerText}`)) {
+      audDataUrl = mediaMap.get(`aud-${lowerText}`)?.data;
     }
 
-    const cleanText = w.text.trim();
     const catName = categoryNameMap.get(w.categoryId) || w.categoryId || 'General';
+    const finalAudioId = w.audioId || (audDataUrl ? `aud-${w.id}` : undefined);
 
     return {
       id: w.id,
-      word: cleanText.toLowerCase(),
+      word: lowerText,
       text: cleanText.toUpperCase(),
       englishWord: cleanText.charAt(0).toUpperCase() + cleanText.slice(1).toLowerCase(),
       hindiWord: '',
@@ -399,7 +410,7 @@ export async function exportBackup(includeMedia: boolean = true): Promise<string
       englishAudioBase64: audDataUrl,
       builtInImage: w.builtInImage,
       imageId: w.imageId,
-      audioId: w.audioId,
+      audioId: finalAudioId,
       length: w.length || cleanText.length,
       enabled: w.enabled,
       favorite: w.favorite,
@@ -433,8 +444,11 @@ export async function importBackup(jsonString: string): Promise<ImportBackupResu
     const existingWords = await db.getAll('words');
     const existingCategories = await db.getAll('categories');
 
-    // Build lookup of existing words (case-insensitive deduplication)
-    const existingWordSet = new Set(existingWords.map(w => w.text.trim().toLowerCase()));
+    // Build lookup of existing words by lowercase text
+    const existingWordsByText = new Map<string, Word>();
+    for (const w of existingWords) {
+      existingWordsByText.set(w.text.trim().toLowerCase(), w);
+    }
 
     // Category mapping: match case-insensitively, or add new category
     const categoryIdMap = new Map<string, string>();
@@ -469,16 +483,54 @@ export async function importBackup(jsonString: string): Promise<ImportBackupResu
     const defaultCatId = existingCategories[0]?.id || 'things';
 
     let addedCount = 0;
+    let updatedCount = 0;
     let skippedCount = 0;
 
     for (const item of parsed.words) {
       const normKey = item.word.toLowerCase();
-      if (existingWordSet.has(normKey)) {
-        skippedCount++;
-        continue; // Non-destructive: DO NOT replace existing word or its image!
-      }
-      existingWordSet.add(normKey);
+      const existingWord = existingWordsByText.get(normKey);
 
+      if (existingWord) {
+        let updated = false;
+
+        // 1. If existing word does NOT have custom audio, but backup has audio
+        if (!existingWord.audioId && item.audioDataUrl) {
+          const audioId = `aud-${existingWord.id}`;
+          const mime = item.audioDataUrl.match(/data:([^;]+);/)?.[1] || 'audio/mp3';
+          await db.put('media', {
+            id: audioId,
+            type: 'audio',
+            data: item.audioDataUrl,
+            mimeType: mime,
+          });
+          existingWord.audioId = audioId;
+          updated = true;
+        }
+
+        // 2. If existing word does NOT have custom image and no built-in illustration, but backup has image
+        if (!existingWord.imageId && !existingWord.builtInImage && item.imageDataUrl) {
+          const imageId = `img-${existingWord.id}`;
+          const mime = item.imageDataUrl.match(/data:([^;]+);/)?.[1] || 'image/png';
+          await db.put('media', {
+            id: imageId,
+            type: 'image',
+            data: item.imageDataUrl,
+            mimeType: mime,
+          });
+          existingWord.imageId = imageId;
+          updated = true;
+        }
+
+        if (updated) {
+          await db.put('words', existingWord);
+          updatedCount++;
+        } else {
+          skippedCount++;
+        }
+        continue;
+      }
+
+      // New word creation
       const wordId = `w-${normKey}-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`;
       let imageId: string | undefined = undefined;
       let audioId: string | undefined = undefined;
@@ -529,12 +581,14 @@ export async function importBackup(jsonString: string): Promise<ImportBackupResu
       };
 
       await db.put('words', newWord);
+      existingWordsByText.set(normKey, newWord);
       addedCount++;
     }
 
     return {
       success: true,
       addedCount,
+      updatedCount,
       skippedCount,
       categoriesAddedCount,
     };
@@ -543,6 +597,7 @@ export async function importBackup(jsonString: string): Promise<ImportBackupResu
     return {
       success: false,
       addedCount: 0,
+      updatedCount: 0,
       skippedCount: 0,
       categoriesAddedCount: 0,
     };

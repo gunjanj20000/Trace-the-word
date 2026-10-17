@@ -66,11 +66,178 @@ export interface ParsedWordPackResult {
 }
 
 /**
+ * Normalizes any audio input (data URL, WebM, generic octet-stream, or raw base64)
+ * into a browser-playable audio data URL (e.g. data:audio/mp3;base64,... or data:audio/webm;base64,...).
+ */
+export function normalizeAudioDataUrl(str: unknown): string | undefined {
+  if (typeof str !== 'string') return undefined;
+  const trimmed = str.trim();
+  if (!trimmed) return undefined;
+
+  // 1. Standard audio data URL
+  if (trimmed.startsWith('data:audio/')) {
+    return trimmed;
+  }
+
+  // 2. Data URL with different MIME (e.g. video/webm or application/octet-stream or generic data:;base64,)
+  if (trimmed.startsWith('data:')) {
+    const semiIdx = trimmed.indexOf(';');
+    if (semiIdx !== -1 && trimmed.includes(';base64,')) {
+      const mime = trimmed.substring(5, semiIdx).toLowerCase();
+      const base64Part = trimmed.substring(trimmed.indexOf(';base64,') + 8).replace(/\s+/g, '');
+      if (mime.includes('webm')) {
+        return `data:audio/webm;base64,${base64Part}`;
+      }
+      if (mime.includes('mp4') || mime.includes('m4a')) {
+        return `data:audio/mp4;base64,${base64Part}`;
+      }
+      if (mime.includes('wav')) {
+        return `data:audio/wav;base64,${base64Part}`;
+      }
+      if (mime.includes('ogg')) {
+        return `data:audio/ogg;base64,${base64Part}`;
+      }
+      // If application/octet-stream, data:; or unknown, default to audio/mp3
+      return `data:audio/mp3;base64,${base64Part}`;
+    }
+  }
+
+  // 3. Raw base64 string without data: prefix
+  if (/^[A-Za-z0-9+/=_\-\s]+$/.test(trimmed) && trimmed.length > 20) {
+    const cleanBase64 = trimmed.replace(/\s+/g, '');
+    return `data:audio/mp3;base64,${cleanBase64}`;
+  }
+
+  return undefined;
+}
+
+/**
+ * Normalizes any image input (data URL, SVG string, generic octet-stream, or raw base64)
+ * into a valid image data URL.
+ */
+export function normalizeImageDataUrl(str: unknown): string | undefined {
+  if (typeof str !== 'string') return undefined;
+  const trimmed = str.trim();
+  if (!trimmed) return undefined;
+
+  if (trimmed.startsWith('data:image/')) {
+    return trimmed;
+  }
+
+  if (trimmed.startsWith('<svg') || trimmed.startsWith('<?xml')) {
+    return `data:image/svg+xml;utf8,${encodeURIComponent(trimmed)}`;
+  }
+
+  if (trimmed.startsWith('data:')) {
+    if (trimmed.includes(';base64,')) {
+      const base64Part = trimmed.substring(trimmed.indexOf(';base64,') + 8).replace(/\s+/g, '');
+      return `data:image/png;base64,${base64Part}`;
+    }
+  }
+
+  if (/^[A-Za-z0-9+/=_\-\s]+$/.test(trimmed) && trimmed.length > 50) {
+    const cleanBase64 = trimmed.replace(/\s+/g, '');
+    return `data:image/png;base64,${cleanBase64}`;
+  }
+
+  return undefined;
+}
+
+/**
+ * Converts a data URL or raw base64 string directly into a Blob synchronously without network fetch.
+ */
+export function dataUrlToBlob(dataUrlOrBase64: string, defaultMime: string = 'application/octet-stream'): Blob {
+  const trimmed = dataUrlOrBase64.trim();
+  const matches = trimmed.match(/^data:([^;]+);base64,(.+)$/s);
+  if (matches) {
+    const mime = matches[1];
+    const base64Data = matches[2].replace(/\s+/g, '');
+    const byteString = atob(base64Data);
+    const arrayBuffer = new ArrayBuffer(byteString.length);
+    const uint8Array = new Uint8Array(arrayBuffer);
+    for (let i = 0; i < byteString.length; i++) {
+      uint8Array[i] = byteString.charCodeAt(i);
+    }
+    return new Blob([uint8Array], { type: mime });
+  }
+
+  // SVG data URL
+  if (trimmed.startsWith('data:image/svg+xml')) {
+    const commaIdx = trimmed.indexOf(',');
+    const svgText = decodeURIComponent(trimmed.substring(commaIdx + 1));
+    return new Blob([svgText], { type: 'image/svg+xml' });
+  }
+
+  // Raw base64 string fallback
+  try {
+    const base64Data = trimmed.replace(/\s+/g, '');
+    const byteString = atob(base64Data);
+    const arrayBuffer = new ArrayBuffer(byteString.length);
+    const uint8Array = new Uint8Array(arrayBuffer);
+    for (let i = 0; i < byteString.length; i++) {
+      uint8Array[i] = byteString.charCodeAt(i);
+    }
+    return new Blob([uint8Array], { type: defaultMime });
+  } catch {
+    return new Blob([trimmed], { type: defaultMime });
+  }
+}
+
+/**
+ * Converts a Blob to a base64 Data URL using FileReader, ensuring proper MIME header.
+ */
+export function blobToDataUrl(blob: Blob, fallbackMime?: string): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      let res = reader.result as string;
+      if (
+        fallbackMime &&
+        (res.startsWith('data:;base64,') ||
+          res.startsWith('data:application/octet-stream;base64,') ||
+          res.startsWith('data:;'))
+      ) {
+        res = res.replace(/^data:[^;]*;base64,/, `data:${fallbackMime};base64,`);
+      }
+      resolve(res);
+    };
+    reader.onerror = () => reject(reader.error);
+    reader.readAsDataURL(blob);
+  });
+}
+
+/**
+ * Determines file extension from MIME type.
+ */
+export function getExtensionFromMime(mime: string, fallback: string = 'mp3'): string {
+  const m = (mime || '').toLowerCase();
+  if (m.includes('webm')) return 'webm';
+  if (m.includes('mp4') || m.includes('m4a')) return 'm4a';
+  if (m.includes('wav')) return 'wav';
+  if (m.includes('ogg')) return 'ogg';
+  if (m.includes('mpeg') || m.includes('mp3')) return 'mp3';
+  if (m.includes('svg')) return 'svg';
+  if (m.includes('webp')) return 'webp';
+  if (m.includes('png')) return 'png';
+  if (m.includes('jpeg') || m.includes('jpg')) return 'jpg';
+  return fallback;
+}
+
+/**
+ * Generates an OPFS/file-system safe filename without invalid path characters.
+ */
+export function getSafeFilename(prefix: string, word: string, ext: string, uniqueSuffix?: string): string {
+  const safeWord = word.toLowerCase().trim().replace(/[^a-z0-9_-]/g, '_') || 'word';
+  const suffix = uniqueSuffix ? `_${uniqueSuffix}` : '';
+  return `${prefix}_${Date.now()}${suffix}_${safeWord}.${ext}`;
+}
+
+/**
  * Universal parser that understands files from:
- * 1. Universal Word Pack (v2 format)
- * 2. CogniCard (categories + flashcards with imageBase64)
+ * 1. Universal Word Pack (v2 format with words, media, categories)
+ * 2. CogniCard (categories + flashcards with englishAudioBase64/imageBase64)
  * 3. TraceTheWord (words + media store + categories)
- * 4. WordLearn (words with imageDataUrl + categories)
+ * 4. WordLearn (words with audioDataUrl/imageDataUrl + categories)
  * 5. Simple word arrays [ { word: "..." }, ... ]
  */
 export function parseAnyWordPack(input: string | any): ParsedWordPackResult {
@@ -89,15 +256,16 @@ export function parseAnyWordPack(input: string | any): ParsedWordPackResult {
     throw new Error('Invalid file structure. Expected JSON object or array.');
   }
 
-  // 1. Build Media Map if media array exists (TraceTheWord format)
+  // 1. Build Media Map if media array exists (TraceTheWord & Universal format)
   const mediaMap = new Map<string, { data: string; mimeType: string }>();
   if (Array.isArray(data.media)) {
     for (const m of data.media) {
       if (m && m.id && m.data) {
-        mediaMap.set(String(m.id), {
-          data: String(m.data),
-          mimeType: m.mimeType || 'image/png',
-        });
+        const idStr = String(m.id).trim();
+        const mime = m.mimeType || (m.type === 'audio' || idStr.startsWith('aud') ? 'audio/mp3' : 'image/png');
+        const mediaVal = { data: String(m.data), mimeType: mime };
+        mediaMap.set(idStr, mediaVal);
+        mediaMap.set(idStr.toLowerCase(), mediaVal);
       }
     }
   }
@@ -120,12 +288,13 @@ export function parseAnyWordPack(input: string | any): ParsedWordPackResult {
         if (c.id !== undefined) {
           categoryIdToName.set(c.id, cleanName);
           categoryIdToName.set(String(c.id), cleanName);
+          categoryIdToName.set(String(c.id).toLowerCase(), cleanName);
         }
       }
     }
   }
 
-  // 3. Extract Raw Words
+  // 3. Extract Raw Words / Flashcards
   let rawList: any[] = [];
   if (Array.isArray(data)) {
     rawList = data;
@@ -133,6 +302,8 @@ export function parseAnyWordPack(input: string | any): ParsedWordPackResult {
     rawList = data.words;
   } else if (Array.isArray(data.flashcards)) {
     rawList = data.flashcards;
+  } else if (Array.isArray(data.cards)) {
+    rawList = data.cards;
   } else {
     throw new Error('No words or flashcards found in the file.');
   }
@@ -165,44 +336,103 @@ export function parseAnyWordPack(input: string | any): ParsedWordPackResult {
       categoryName = raw.category.trim();
     } else if (raw.categoryId !== undefined && categoryIdToName.has(raw.categoryId)) {
       categoryName = categoryIdToName.get(raw.categoryId)!;
+    } else if (raw.categoryId !== undefined && categoryIdToName.has(String(raw.categoryId).toLowerCase())) {
+      categoryName = categoryIdToName.get(String(raw.categoryId).toLowerCase())!;
     } else if (typeof raw.categoryId === 'string' && raw.categoryId.trim()) {
       categoryName = raw.categoryId.trim();
     }
     categoryName = categoryName.charAt(0).toUpperCase() + categoryName.slice(1);
 
-    // Extract image
+    // Extract image (support multiple schema fields and media map references)
     let imageDataUrl: string | undefined = undefined;
-    if (typeof raw.imageDataUrl === 'string' && raw.imageDataUrl.startsWith('data:image/')) {
-      imageDataUrl = raw.imageDataUrl;
-    } else if (typeof raw.imageBase64 === 'string' && raw.imageBase64.startsWith('data:image/')) {
-      imageDataUrl = raw.imageBase64;
-    } else if (raw.imageId && mediaMap.has(String(raw.imageId))) {
-      imageDataUrl = mediaMap.get(String(raw.imageId))?.data;
-    } else if (raw.id && mediaMap.has(String(raw.id))) {
-      imageDataUrl = mediaMap.get(String(raw.id))?.data;
-    } else if (typeof raw.image === 'string' && raw.image.startsWith('data:image/')) {
-      imageDataUrl = raw.image;
+    const candidateImage = raw.imageDataUrl || raw.imageBase64 || raw.image || raw.imageSrc || raw.imageUrl;
+    if (candidateImage) {
+      imageDataUrl = normalizeImageDataUrl(candidateImage);
     }
+    if (!imageDataUrl) {
+      const candidateKeys = [
+        raw.imageId ? String(raw.imageId) : null,
+        raw.imageId ? String(raw.imageId).toLowerCase() : null,
+        raw.id ? String(raw.id) : null,
+        raw.id ? String(raw.id).toLowerCase() : null,
+        `img-${lower}`,
+        `image_${lower}`,
+      ].filter(Boolean) as string[];
 
+      for (const k of candidateKeys) {
+        if (mediaMap.has(k)) {
+          const m = mediaMap.get(k);
+          if (m?.data) {
+            imageDataUrl = normalizeImageDataUrl(m.data);
+            if (imageDataUrl) break;
+          }
+        }
+      }
+    }
     if (imageDataUrl) hasImageCount++;
 
-    // Extract audio
+    // Extract audio (support multiple schema fields and media map references)
     let audioDataUrl: string | undefined = undefined;
-    if (typeof raw.audioDataUrl === 'string' && raw.audioDataUrl.startsWith('data:audio/')) {
-      audioDataUrl = raw.audioDataUrl;
-    } else if (typeof raw.englishAudioBase64 === 'string' && raw.englishAudioBase64.startsWith('data:audio/')) {
-      audioDataUrl = raw.englishAudioBase64;
-    } else if (raw.audioId && mediaMap.has(String(raw.audioId))) {
-      audioDataUrl = mediaMap.get(String(raw.audioId))?.data;
+    const candidateAudio =
+      raw.audioDataUrl ||
+      raw.englishAudioBase64 ||
+      raw.audio ||
+      raw.audioBase64 ||
+      raw.voiceDataUrl ||
+      raw.voice ||
+      raw.sound ||
+      raw.englishAudio;
+
+    if (candidateAudio) {
+      audioDataUrl = normalizeAudioDataUrl(candidateAudio);
     }
 
+    if (!audioDataUrl) {
+      const candidateKeys = [
+        raw.audioId ? String(raw.audioId) : null,
+        raw.audioId ? String(raw.audioId).toLowerCase() : null,
+        `aud-${lower}`,
+        `audio_${lower}`,
+        `aud-${raw.id}`,
+        `audio_${raw.id}`,
+        `${lower}.mp3`,
+        `${lower}.wav`,
+        `${lower}.webm`,
+        raw.id ? String(raw.id) : null,
+        raw.id ? String(raw.id).toLowerCase() : null,
+      ].filter(Boolean) as string[];
+
+      for (const k of candidateKeys) {
+        if (mediaMap.has(k)) {
+          const m = mediaMap.get(k);
+          if (m?.data) {
+            const isAudio =
+              m.mimeType?.startsWith('audio/') ||
+              k.startsWith('aud') ||
+              k.endsWith('.mp3') ||
+              k.endsWith('.wav') ||
+              k.endsWith('.webm') ||
+              k === raw.audioId;
+            if (isAudio) {
+              audioDataUrl = normalizeAudioDataUrl(m.data);
+              if (audioDataUrl) break;
+            }
+          }
+        }
+      }
+    }
     if (audioDataUrl) hasAudioCount++;
 
+    // Extract Hindi audio if present
     let hindiAudioBase64: string | undefined = undefined;
-    if (typeof raw.hindiAudioBase64 === 'string' && raw.hindiAudioBase64.startsWith('data:audio/')) {
-      hindiAudioBase64 = raw.hindiAudioBase64;
-    } else if (typeof raw.hindiAudioDataUrl === 'string' && raw.hindiAudioDataUrl.startsWith('data:audio/')) {
-      hindiAudioBase64 = raw.hindiAudioDataUrl;
+    const candidateHindiAudio =
+      raw.hindiAudioBase64 ||
+      raw.hindiAudioDataUrl ||
+      raw.hindiAudio ||
+      raw.hindiVoice;
+
+    if (candidateHindiAudio) {
+      hindiAudioBase64 = normalizeAudioDataUrl(candidateHindiAudio);
     }
 
     const builtInImage = raw.builtInImage ? String(raw.builtInImage).trim().toLowerCase() : undefined;
@@ -262,7 +492,10 @@ export function parseAnyWordPack(input: string | any): ParsedWordPackResult {
 }
 
 /**
- * Creates the universal export JSON string containing all formats for universal compatibility.
+ * Creates the universal export JSON string containing all formats for universal compatibility across:
+ * - CogniCard (reads flashcards & words with imageBase64 / englishAudioBase64 / audioDataUrl)
+ * - TraceTheWord (reads words, media array, and categories)
+ * - WordLearn (reads words with imageDataUrl & audioDataUrl and categories)
  */
 export function createUniversalWordPack(params: {
   appName: string;
@@ -278,25 +511,43 @@ export function createUniversalWordPack(params: {
   const existingMediaIds = new Set(mediaList.map((m) => m.id));
 
   for (const w of words) {
-    if (w.imageDataUrl && w.imageId && !existingMediaIds.has(w.imageId)) {
-      const mime = w.imageDataUrl.match(/data:([^;]+);/)?.[1] || 'image/png';
-      mediaList.push({
-        id: w.imageId,
-        type: 'image',
-        data: w.imageDataUrl,
-        mimeType: mime,
-      });
-      existingMediaIds.add(w.imageId);
+    const normAudio = normalizeAudioDataUrl(w.audioDataUrl || w.englishAudioBase64);
+    const normImage = normalizeImageDataUrl(w.imageDataUrl || w.imageBase64);
+
+    if (normAudio) {
+      w.audioDataUrl = normAudio;
+      w.englishAudioBase64 = normAudio;
+      if (!w.audioId) {
+        w.audioId = `aud-${w.word.toLowerCase()}`;
+      }
+      if (!existingMediaIds.has(w.audioId)) {
+        const mime = normAudio.match(/data:([^;]+);/)?.[1] || 'audio/mp3';
+        mediaList.push({
+          id: w.audioId,
+          type: 'audio',
+          data: normAudio,
+          mimeType: mime,
+        });
+        existingMediaIds.add(w.audioId);
+      }
     }
-    if (w.audioDataUrl && w.audioId && !existingMediaIds.has(w.audioId)) {
-      const mime = w.audioDataUrl.match(/data:([^;]+);/)?.[1] || 'audio/mp3';
-      mediaList.push({
-        id: w.audioId,
-        type: 'audio',
-        data: w.audioDataUrl,
-        mimeType: mime,
-      });
-      existingMediaIds.add(w.audioId);
+
+    if (normImage) {
+      w.imageDataUrl = normImage;
+      w.imageBase64 = normImage;
+      if (!w.imageId) {
+        w.imageId = `img-${w.word.toLowerCase()}`;
+      }
+      if (!existingMediaIds.has(w.imageId)) {
+        const mime = normImage.match(/data:([^;]+);/)?.[1] || 'image/png';
+        mediaList.push({
+          id: w.imageId,
+          type: 'image',
+          data: normImage,
+          mimeType: mime,
+        });
+        existingMediaIds.add(w.imageId);
+      }
     }
   }
 
